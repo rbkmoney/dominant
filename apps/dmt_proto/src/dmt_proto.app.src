@@ -1,0 +1,9 @@
+{application, dmt_proto, [
+    {description, "Domain config protocol definitions"},
+    {vsn, "0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib
+    ]}
+]}.
