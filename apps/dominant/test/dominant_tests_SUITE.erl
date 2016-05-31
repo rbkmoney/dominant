@@ -17,8 +17,8 @@ init_per_suite(C) ->
     {ok, Apps} = application:ensure_all_started(dominant),
     [{apps, Apps}|C].
 
-init_per_suite(_, _C) ->
-    [application_stop(App) || App <- proplists:get_value(apps)].
+end_per_suite(C) ->
+    [application_stop(App) || App <- proplists:get_value(apps, C)].
 
 application_stop(App=sasl) ->
     %% hack for preventing sasl deadlock

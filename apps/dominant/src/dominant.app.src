@@ -6,8 +6,9 @@
     {applications, [
         kernel,
         stdlib,
+        lager,
         genlib,
-        damsel
+        dmt_proto
     ]},
     {env, []},
     {modules, []},
