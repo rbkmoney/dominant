@@ -1,0 +1,19 @@
+{application, dominant, [
+    {description, "Domain config service"},
+    {vsn, "0"},
+    {registered, []},
+    {mod, {dominant, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        genlib,
+        damsel
+    ]},
+    {env, []},
+    {modules, []},
+    {maintainers, [
+        "Andrey Mayorov <a.mayorov@rbkmoney.com>"
+    ]},
+    {licenses, []},
+    {links, ["https://github.com/rbkmoney/dominant"]}
+]}.
