@@ -7,6 +7,7 @@
 
 -export([checkout/2]).
 -export([commit/1]).
+-export([get_snapshot/1]).
 
 %%
 
@@ -37,10 +38,12 @@ checkout(Version, Key) ->
             throw(not_found)
     end.
 
--spec commit(dmt:commit()) -> ok.
+-spec commit(dmt:commit()) -> dmt:version().
 
 commit(Commit) ->
     gen_server:call(?SERVER, {commit, Commit}).
+
+-spec get_snapshot(dmt:ref()) -> dmt:snapshot().
 
 get_snapshot(head) ->
     get_snapshot(ets:last(?CACHE));
@@ -67,14 +70,14 @@ init(_) ->
     Head = cache(dmt_storage:get_snapshot()),
     {ok, #state{head = Head}}.
 
--spec handle_call(term(), {pid(), term()}, state()) -> {reply, dmt:snapshot(), state()}.
+-spec handle_call(term(), {pid(), term()}, state()) -> {reply, term(), state()}.
 handle_call({get_snapshot, Version}, _From, #state{head = Head} = State) ->
     %% TODO: use closest snapshot from the cache
     Snapshot = cache(rollback(Head, Version)),
     {reply, Snapshot, State};
 handle_call({commit, Commit}, _From, #state{head = Head} = State) ->
-    NewHead = cache(commit(Commit, Head)),
-    {reply, ok, State#state{head = NewHead}};
+    {NewVersion, _Schema, _Data} = NewHead = cache(commit(Commit, Head)),
+    {reply, NewVersion, State#state{head = NewHead}};
 handle_call(_Msg, _From, State) ->
     {noreply, State}.
 

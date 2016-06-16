@@ -10,6 +10,7 @@
 -export([checkout/2]).
 -export([commit/1]).
 -export([current_schema/0]).
+-export([current_version/0]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -50,7 +51,7 @@ checkout(Key) ->
 checkout(Ref, Key) ->
     dmt_server:checkout(Ref, Key).
 
--spec commit(commit()) -> ok.
+-spec commit(commit()) -> version().
 commit(Commit) ->
     dmt_server:commit(Commit).
 
@@ -59,6 +60,11 @@ commit(Commit) ->
 -spec current_schema() -> schema().
 current_schema() ->
     ?REVISION.
+
+-spec current_version() -> version().
+current_version() ->
+    {Version, _Schema, _Data} = dmt_server:get_snapshot(head),
+    Version.
 
 %% Supervisor callbacks
 
