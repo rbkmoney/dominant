@@ -10,6 +10,8 @@
 -export([update/1]).
 -export([delete/1]).
 
+-include_lib("dmt_proto/include/dmt_domain_config_thrift.hrl").
+
 %%
 %% tests descriptions
 %%
@@ -22,7 +24,7 @@ all() ->
 -spec groups() -> [term()].
 groups() ->
     [
-        {basic_lifecycle, [parallel], [
+        {basic_lifecycle, [sequence], [
             insert,
             update,
             delete
@@ -56,33 +58,41 @@ application_stop(App) ->
 %% tests
 -spec insert(term()) -> term().
 insert(_C) ->
-    Key = crypto:rand_bytes(10),
-    Value = crypto:rand_bytes(10),
-    not_found = (catch dmt:checkout(Key)),
-    Version1 = dmt:current_version(),
-    Version2 = dmt:commit({dmt:current_schema(), [{insert, Key, Value}]}),
-    Version2 = dmt:current_version(),
-    Value = dmt:checkout(Key),
-    not_found = (catch dmt:checkout(Version1, Key)),
-    Value = dmt:checkout(Version2, Key).
+    Object = fixture_domain_object(1, <<"InsertFixture">>),
+    Ref = fixture_object_ref(1),
+    object_not_found = (catch dmt:checkout_object({head, #'Head'{}}, Ref)),
+    #'Snapshot'{version = Version1} = dmt:checkout({head, #'Head'{}}),
+    Version2 = dmt:commit(Version1, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
+    #'CheckoutObjectResult'{object = Object} = dmt:checkout_object({head, #'Head'{}}, Ref),
+    object_not_found = (catch dmt:checkout_object({version, Version1}, Ref)),
+    #'CheckoutObjectResult'{object = Object} = dmt:checkout_object({version, Version2}, Ref).
 
 -spec update(term()) -> term().
 update(_C) ->
-    Key = crypto:rand_bytes(10),
-    Value1 = crypto:rand_bytes(10),
-    Value2 = crypto:rand_bytes(10),
-    Version1 = dmt:commit({dmt:current_schema(), [{insert, Key, Value1}]}),
-    Version2 = dmt:commit({dmt:current_schema(), [{update, Key, Value2}]}),
-    Value1 = dmt:checkout(Version1, Key),
-    Value2 = dmt:checkout(Version2, Key),
-    Value2 = dmt:checkout(Key).
+    Object1 = fixture_domain_object(2, <<"UpdateFixture1">>),
+    Object2 = fixture_domain_object(2, <<"UpdateFixture2">>),
+    Ref = fixture_object_ref(2),
+    #'Snapshot'{version = Version0} = dmt:checkout({head, #'Head'{}}),
+    Version1 = dmt:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object1}}]}),
+    Version2 = dmt:commit(Version1, #'Commit'{ops = [{update, #'UpdateOp'{old_object = Object1, new_object = Object2}}]}),
+    #'CheckoutObjectResult'{object = Object1} = dmt:checkout_object({version, Version1}, Ref),
+    #'CheckoutObjectResult'{object = Object2} = dmt:checkout_object({version, Version2}, Ref).
 
 -spec delete(term()) -> term().
 delete(_C) ->
-    Key = crypto:rand_bytes(10),
-    Value = crypto:rand_bytes(10),
-    Version1 = dmt:commit({dmt:current_schema(), [{insert, Key, Value}]}),
-    Version2 = dmt:commit({dmt:current_schema(), [{delete, Key}]}),
-    Value = dmt:checkout(Version1, Key),
-    not_found = (catch dmt:checkout(Version2, Key)),
-    not_found = (catch dmt:checkout(Key)).
+    Object = fixture_domain_object(3, <<"DeleteFixture">>),
+    Ref = fixture_object_ref(3),
+    #'Snapshot'{version = Version0} = dmt:checkout({head, #'Head'{}}),
+    Version1 = dmt:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
+    Version2 = dmt:commit(Version1, #'Commit'{ops = [{remove, #'DeleteOp'{object = Object}}]}),
+    #'CheckoutObjectResult'{object = Object} = dmt:checkout_object({version, Version1}, Ref),
+    object_not_found = (catch dmt:checkout_object({version, Version2}, Ref)).
+
+fixture_domain_object(Ref, Data) ->
+    {party, #'PartyObject'{
+        ref = #'PartyRef'{id = Ref},
+        data = #'Party'{registered_name = Data}
+    }}.
+
+fixture_object_ref(Ref) ->
+    {party, #'PartyRef'{id = Ref}}.

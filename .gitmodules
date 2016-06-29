@@ -1,4 +1,4 @@
 [submodule "apps/dmt_proto/damsel"]
 	path = apps/dmt_proto/damsel
-	url = git@github.com:keynslug/damsel.git
-	branch = master
+	url = git@github.com:rbkmoney/damsel.git
+	branch = dominator_update
