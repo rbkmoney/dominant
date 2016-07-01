@@ -57,9 +57,9 @@ insert(_C) ->
     object_not_found = (catch dmt:checkout_object({head, #'Head'{}}, Ref)),
     #'Snapshot'{version = Version1} = dmt:checkout({head, #'Head'{}}),
     Version2 = dmt:commit(Version1, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
-    #'CheckoutObjectResult'{object = Object} = dmt:checkout_object({head, #'Head'{}}, Ref),
+    #'VersionedObject'{object = Object} = dmt:checkout_object({head, #'Head'{}}, Ref),
     object_not_found = (catch dmt:checkout_object({version, Version1}, Ref)),
-    #'CheckoutObjectResult'{object = Object} = dmt:checkout_object({version, Version2}, Ref).
+    #'VersionedObject'{object = Object} = dmt:checkout_object({version, Version2}, Ref).
 
 -spec update(term()) -> term().
 update(_C) ->
@@ -69,8 +69,8 @@ update(_C) ->
     #'Snapshot'{version = Version0} = dmt:checkout({head, #'Head'{}}),
     Version1 = dmt:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object1}}]}),
     Version2 = dmt:commit(Version1, #'Commit'{ops = [{update, #'UpdateOp'{old_object = Object1, new_object = Object2}}]}),
-    #'CheckoutObjectResult'{object = Object1} = dmt:checkout_object({version, Version1}, Ref),
-    #'CheckoutObjectResult'{object = Object2} = dmt:checkout_object({version, Version2}, Ref).
+    #'VersionedObject'{object = Object1} = dmt:checkout_object({version, Version1}, Ref),
+    #'VersionedObject'{object = Object2} = dmt:checkout_object({version, Version2}, Ref).
 
 -spec delete(term()) -> term().
 delete(_C) ->
@@ -78,8 +78,8 @@ delete(_C) ->
     Ref = fixture_object_ref(3),
     #'Snapshot'{version = Version0} = dmt:checkout({head, #'Head'{}}),
     Version1 = dmt:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
-    Version2 = dmt:commit(Version1, #'Commit'{ops = [{remove, #'DeleteOp'{object = Object}}]}),
-    #'CheckoutObjectResult'{object = Object} = dmt:checkout_object({version, Version1}, Ref),
+    Version2 = dmt:commit(Version1, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}),
+    #'VersionedObject'{object = Object} = dmt:checkout_object({version, Version1}, Ref),
     object_not_found = (catch dmt:checkout_object({version, Version2}, Ref)).
 
 fixture_domain_object(Ref, Data) ->

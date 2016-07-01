@@ -34,7 +34,7 @@ get_commit(Id) ->
 -spec get_history() -> dmt:history().
 get_history() ->
     {{ok, Events}, _Context} = dmt_storage_mgun:call_mg(getHistory, [{tag, ?MG_TAG}, #'HistoryRange'{}]),
-    maps:from_list([{Id, binary_to_term(Body)} || #'Event'{id = Id, body = Body} <- Events]).
+    maps:from_list([{Id, binary_to_term(Body)} || #'Event'{id = Id, event_payload = Body} <- Events]).
 
 -spec commit(dmt:commit()) -> ok.
 commit(Commit) ->

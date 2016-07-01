@@ -35,7 +35,7 @@ apply_operations([{insert, #'InsertOp'{object = Object}} | Rest], Domain) ->
     apply_operations(Rest, insert(Object, Domain));
 apply_operations([{update, #'UpdateOp'{old_object = OldObject, new_object = NewObject}} | Rest], Domain) ->
     apply_operations(Rest, update(OldObject, NewObject, Domain));
-apply_operations([{remove, #'DeleteOp'{object = Object}} | Rest], Domain) ->
+apply_operations([{remove, #'RemoveOp'{object = Object}} | Rest], Domain) ->
     apply_operations(Rest, delete(Object, Domain)).
 
 -spec revert_operations([dmt:operation()], dmt:domain()) -> dmt:domain().
@@ -45,7 +45,7 @@ revert_operations([{insert, #'InsertOp'{object = Object}} | Rest], Domain) ->
     revert_operations(Rest, delete(Object, Domain));
 revert_operations([{update, #'UpdateOp'{old_object = OldObject, new_object = NewObject}} | Rest], Domain) ->
     revert_operations(Rest, update(NewObject, OldObject, Domain));
-revert_operations([{remove, #'DeleteOp'{object = Object}} | Rest], Domain) ->
+revert_operations([{remove, #'RemoveOp'{object = Object}} | Rest], Domain) ->
     revert_operations(Rest, insert(Object, Domain)).
 
 -spec insert(dmt:domain_object(), dmt:domain()) -> dmt:domain().

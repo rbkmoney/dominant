@@ -50,11 +50,11 @@ checkout(Reference) ->
     dmt_server:checkout(Reference).
 
 -spec checkout_object(ref(), object_ref()) ->
-    dmt_domain_config_thrift:'CheckoutObjectResult'().
+    dmt_domain_config_thrift:'VersionedObject'().
 checkout_object(Reference, ObjectReference) ->
     #'Snapshot'{version = Version, domain = Domain} = checkout(Reference),
     Object = dmt_domain:get_object(ObjectReference, Domain),
-    #'CheckoutObjectResult'{version = Version, object = Object}.
+    #'VersionedObject'{version = Version, object = Object}.
 
 -spec pull(version()) -> history().
 pull(Version) ->
