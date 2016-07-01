@@ -33,19 +33,35 @@ init([]) ->
                 ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "localhost")),
                 port => genlib_app:env(?MODULE, port, 8800),
                 net_opts => [],
-                event_handler => dmt_api_repository_handler,
-                handlers => [get_handler_spec(repository)]
+                event_handler => dmt_api_event_handler,
+                handlers => [
+                    get_handler_spec(repository),
+                    get_handler_spec(repository_client),
+                    get_handler_spec(mgun_processor)
+                ]
             }
         )]
     }}.
 
 -spec get_handler_spec(Which) -> {Path, {woody_t:service(), module(), term()}} when
-    Which   :: repository,
+    Which   :: repository | repository_client | mgun_processor,
     Path    :: iodata().
 
 get_handler_spec(repository) ->
     {"/v1/domain/repository", {
         {dmt_domain_config, 'Repository'},
         dmt_api_repository_handler,
+        []
+    }};
+get_handler_spec(repository_client) ->
+    {"/v1/domain/repository_client", {
+        {dmt_domain_config, 'RepositoryClient'},
+        dmt_api_repository_client_handler,
+        []
+    }};
+get_handler_spec(mgun_processor) ->
+    {"/v1/domain/mgun_processor", {
+        {dmt_state_processing_thrift, 'Processor'},
+        dmt_api_mgun_handler,
         []
     }}.

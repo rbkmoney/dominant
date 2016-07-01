@@ -2,29 +2,29 @@
 
 %%
 
--callback get_head() -> dmt:snapshot().
 -callback get_commit(dmt:version()) -> dmt:commit().
--callback save(dmt:commit(), dmt:snapshot()) -> ok.
+-callback get_history() -> dmt:history().
+-callback commit(dmt:commit()) -> ok.
 
 %%
 
--export([get_head/0]).
 -export([get_commit/1]).
--export([save/2]).
+-export([get_history/0]).
+-export([commit/1]).
 
 %%
-
--spec get_head() -> dmt:snapshot().
-get_head() ->
-    {ok, Module} = application:get_env(dmt, storage),
-    Module:get_head().
 
 -spec get_commit(dmt:version()) -> dmt:commit().
 get_commit(Version) ->
     {ok, Module} = application:get_env(dmt, storage),
     Module:get_commit(Version).
 
--spec save(dmt:commit(), dmt:snapshot()) -> ok.
-save(Commit, Snapshot) ->
+-spec get_history() -> dmt:history().
+get_history() ->
     {ok, Module} = application:get_env(dmt, storage),
-    Module:save(Commit, Snapshot).
+    Module:get_history().
+
+-spec commit(dmt:commit()) -> ok.
+commit(Commit) ->
+    {ok, Module} = application:get_env(dmt, storage),
+    Module:commit(Commit).

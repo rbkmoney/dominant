@@ -57,10 +57,13 @@ checkout({version, Version}) ->
 
 init(_) ->
     ok = init_cache(),
-    Head = cache(dmt_storage:get_head()),
-    {ok, #state{head = Head}}.
+    {ok, #state{}}.
 
 -spec handle_call(term(), {pid(), term()}, state()) -> {reply, term(), state()}.
+handle_call(Call, From, #state{head = undefined} = State) ->
+    History = dmt_storage:get_history(),
+    Head = cache(rollforward(new_snapshot(), History)),
+    handle_call(Call, From, State#state{head = Head});
 handle_call({checkout, Version}, _From, #state{head = Head} = State) ->
     %% TODO: use closest snapshot from the cache
     Snapshot = cache(rollback(Head, Version)),
@@ -101,7 +104,12 @@ init_cache() ->
     ok.
 
 head_cache() ->
-    ets:last(?CACHE).
+    case ets:last(?CACHE) of
+        '$end_of_table' ->
+            0;
+        Version ->
+            Version
+    end.
 
 checkout_cache(Version) ->
     ets:lookup(?CACHE, Version).
@@ -110,7 +118,7 @@ checkout_cache(Version) ->
 commit(Version, #'Commit'{ops = Ops} = Commit, #'Snapshot'{version = Version, domain = Domain}) ->
     NewDomain = dmt_domain:apply_operations(Ops, Domain),
     NewSnapshot = #'Snapshot'{version = Version + 1, domain = NewDomain},
-    ok = dmt_storage:save(Commit, NewSnapshot),
+    ok = dmt_storage:commit(Commit),
     NewSnapshot;
 commit(_Version, _Commit, _Snapshot) ->
     throw(version_out_of_date).
@@ -126,3 +134,16 @@ rollback(#'Snapshot'{version = FromVersion, domain = Domain}, ToVersion) when To
     #'Commit'{ops = Ops} = dmt_storage:get_commit(FromVersion),
     NewDomain = dmt_domain:revert_operations(Ops, Domain),
     rollback(#'Snapshot'{version = FromVersion - 1, domain = NewDomain}, ToVersion).
+
+-spec rollforward(dmt:snapshot(), dmt:history()) -> dmt:snapshot().
+rollforward(#'Snapshot'{version = Version, domain = Domain} = Snapshot, History) ->
+    case maps:find(Version + 1, History) of
+        {ok, #'Commit'{ops = Ops}} ->
+            NewDomain = dmt_domain:apply_operations(Ops, Domain),
+            rollforward(#'Snapshot'{version = Version + 1, domain = NewDomain}, History);
+        error ->
+            Snapshot
+    end.
+
+new_snapshot() ->
+    #'Snapshot'{version = 0, domain = #{}}.

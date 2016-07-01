@@ -35,8 +35,9 @@ groups() ->
 %% starting/stopping
 -spec init_per_suite(term()) -> term().
 init_per_suite(C) ->
-    ok = application:set_env(dmt, storage, dmt_storage_env),
-    {ok, Apps} = application:ensure_all_started(dmt),
+    ok = application:set_env(dmt, storage, dmt_storage_mgun),
+    ok = application:set_env(dmt, mgun_automaton_url, "http://127.0.0.1:8022/v1/automaton_service"),
+    {ok, Apps} = application:ensure_all_started(dmt_api),
     [{apps, Apps}|C].
 
 -spec end_per_suite(term()) -> term().
@@ -44,13 +45,6 @@ end_per_suite(C) ->
     [application_stop(App) || App <- proplists:get_value(apps, C)].
 
 -spec application_stop(term()) -> term().
-application_stop(App=sasl) ->
-    %% hack for preventing sasl deadlock
-    %% http://erlang.org/pipermail/erlang-questions/2014-May/079012.html
-    error_logger:delete_report_handler(cth_log_redirect),
-    application:stop(App),
-    error_logger:add_report_handler(cth_log_redirect),
-    ok;
 application_stop(App) ->
     application:stop(App).
 
