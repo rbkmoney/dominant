@@ -14,9 +14,18 @@
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
 ) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
-handle_function(processCall, {#'CallArgs'{call = Call}}, Context, _Opts) ->
-    CA = #'ComplexAction'{},
-    {{ok, #'CallResult'{events = [Call], action = CA, response = <<"ok">>}}, Context};
+handle_function(processCall, {#'CallArgs'{call = <<"commit", Data/binary>>, history = History}}, Context, _Opts) ->
+    {Version, Commit} = binary_to_term(Data),
+    ok = dmt:validate_commit(Version, Commit, dmt_mg:read_history(History)),
+    _Snapshot = dmt_cache:commit(Commit),
+    {
+        {ok, #'CallResult'{
+            events = [term_to_binary(Commit)],
+            action = #'ComplexAction'{},
+            response = <<"ok">>
+        }},
+        Context
+    };
 handle_function(processSignal, {#'SignalArgs'{signal = {init, #'InitSignal'{}}}}, Context, _Opts) ->
     CA = #'ComplexAction'{tag = #'TagAction'{tag = <<"dmt_storage">>}},
     {{ok, #'SignalResult'{events = [], action = CA}}, Context}.

@@ -10,6 +10,7 @@
 -export([checkout_object/2]).
 -export([pull/1]).
 -export([commit/2]).
+-export([validate_commit/3]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -47,7 +48,7 @@
 
 -spec checkout(ref()) -> snapshot().
 checkout(Reference) ->
-    dmt_server:checkout(Reference).
+    dmt_cache:checkout(Reference).
 
 -spec checkout_object(ref(), object_ref()) ->
     dmt_domain_config_thrift:'VersionedObject'().
@@ -58,16 +59,28 @@ checkout_object(Reference, ObjectReference) ->
 
 -spec pull(version()) -> history().
 pull(Version) ->
-    case dmt_server:checkout({head, #'Head'{}}) of
-        #'Snapshot'{version = Head} when Head > Version ->
-            maps:from_list([{V, dmt_storage:get_commit(V)} || V <- lists:seq(Version + 1, Head)]);
-        #'Snapshot'{} ->
-            #{}
-    end.
+    dmt_mg:get_history(Version).
 
 -spec commit(version(), commit()) -> version().
 commit(Version, Commit) ->
-    dmt_server:commit(Version, Commit).
+    ok = dmt_mg:commit(Version, Commit),
+    Version + 1.
+
+-spec validate_commit(version(), commit(), history()) -> ok.
+validate_commit(Version, _Commit, History) ->
+    %%TODO: actually validate commit
+    LastVersion = case map_size(History) of
+        0 ->
+            0;
+        _Size ->
+            lists:max(maps:keys(History))
+    end,
+    case Version =:= LastVersion of
+        true ->
+            ok;
+        false ->
+            throw(bad_version)
+    end.
 
 %% Supervisor callbacks
 
@@ -77,9 +90,7 @@ init([]) ->
     {ok, {
         #{strategy => rest_for_one, intensity => 10, period => 60},
         [
-            % TODO
-            % #{id => storage, start => {dmt_storage, start_link, []}, restart => permanent},
-            #{id => dmt_server, start => {dmt_server, start_link, []}, restart => permanent}
+            #{id => dmt_cache, start => {dmt_cache, start_link, []}, restart => permanent}
         ]
     }}.
 
