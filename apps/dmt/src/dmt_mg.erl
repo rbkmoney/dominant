@@ -9,8 +9,7 @@
 -export([read_history/1]).
 
 -include_lib("dmt_proto/include/dmt_state_processing_thrift.hrl").
-
--define(MG_TAG, <<"dmt_storage">>).
+-include_lib("dmt/include/dmt_mg.hrl").
 
 -spec call(atom(), list(term())) ->
      {ok, term()} | ok | no_return().

@@ -30,7 +30,7 @@ init([]) ->
         [woody_server:child_spec(
             ?MODULE,
             #{
-                ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "localhost")),
+                ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "dominant")),
                 port => genlib_app:env(?MODULE, port, 8800),
                 net_opts => [],
                 event_handler => dmt_api_event_handler,
@@ -49,13 +49,13 @@ init([]) ->
 
 get_handler_spec(repository) ->
     {"/v1/domain/repository", {
-        {dmt_domain_config, 'Repository'},
+        {dmt_domain_config_thrift, 'Repository'},
         dmt_api_repository_handler,
         []
     }};
 get_handler_spec(repository_client) ->
     {"/v1/domain/repository_client", {
-        {dmt_domain_config, 'RepositoryClient'},
+        {dmt_domain_config_thrift, 'RepositoryClient'},
         dmt_api_repository_client_handler,
         []
     }};

@@ -6,6 +6,7 @@
 %%
 
 -include_lib("dmt_proto/include/dmt_state_processing_thrift.hrl").
+-include_lib("dmt/include/dmt_mg.hrl").
 
 
 -spec handle_function(
@@ -27,5 +28,5 @@ handle_function(processCall, {#'CallArgs'{call = <<"commit", Data/binary>>, hist
         Context
     };
 handle_function(processSignal, {#'SignalArgs'{signal = {init, #'InitSignal'{}}}}, Context, _Opts) ->
-    CA = #'ComplexAction'{tag = #'TagAction'{tag = <<"dmt_storage">>}},
+    CA = #'ComplexAction'{tag = #'TagAction'{tag = ?MG_TAG}},
     {{ok, #'SignalResult'{events = [], action = CA}}, Context}.

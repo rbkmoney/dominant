@@ -22,6 +22,7 @@
 -define(SERVER, ?MODULE).
 
 -include_lib("dmt_proto/include/dmt_domain_config_thrift.hrl").
+-include_lib("stdlib/include/ms_transform.hrl").
 
 %%
 
@@ -116,7 +117,7 @@ head() ->
 
 -spec closest_snapshot(dmt:version()) -> dmt:snapshot().
 closest_snapshot(Version) ->
-    CachedVersions = ets:select(?TABLE, [{#'Snapshot'{version = '$1', _ = '_'}, [], ['$1']}]),
+    CachedVersions = ets:select(?TABLE, ets:fun2ms(fun (#'Snapshot'{version = V}) -> V end)),
     Closest = lists:foldl(fun (V, Acc) ->
         case abs(V - Version) =< abs(Acc - Version) of
             true ->

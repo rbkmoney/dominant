@@ -13,7 +13,7 @@
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
 ) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
-handle_function(commit, {Reference, ObjectReference}, Context, _Opts) ->
+handle_function('checkoutObject', {Reference, ObjectReference}, Context, _Opts) ->
     try
         Object = dmt:checkout_object(Reference, ObjectReference),
         {{ok, Object}, Context}

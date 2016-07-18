@@ -13,7 +13,7 @@
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
 ) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
-handle_function(commit, {Version, Commit}, Context, _Opts) ->
+handle_function('Commit', {Version, Commit}, Context, _Opts) ->
     try
         NewVersion = dmt:commit(Version, Commit),
         {{ok, NewVersion}, Context}
@@ -23,7 +23,7 @@ handle_function(commit, {Version, Commit}, Context, _Opts) ->
         version_not_found ->
             throw({#'VersionNotFound'{}, Context})
     end;
-handle_function(checkout, {Reference}, Context, _Opts) ->
+handle_function('Checkout', {Reference}, Context, _Opts) ->
     try
         Snapshot = dmt:checkout(Reference),
         {{ok, Snapshot}, Context}
@@ -31,7 +31,7 @@ handle_function(checkout, {Reference}, Context, _Opts) ->
         version_not_found ->
             throw({#'VersionNotFound'{}, Context})
     end;
-handle_function(pull, {Version}, Context, _Opts) ->
+handle_function('Pull', {Version}, Context, _Opts) ->
     try
         History = dmt:pull(Version),
         {{ok, History}, Context}
