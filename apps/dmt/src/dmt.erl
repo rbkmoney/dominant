@@ -87,12 +87,15 @@ validate_commit(Version, _Commit, History) ->
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 
 init([]) ->
-    {ok, {
-        #{strategy => rest_for_one, intensity => 10, period => 60},
-        [
-            #{id => dmt_cache, start => {dmt_cache, start_link, []}, restart => permanent}
-        ]
-    }}.
+    Cache = #{id => dmt_cache, start => {dmt_cache, start_link, []}, restart => permanent},
+    Poller = #{id => dmt_poller, start => {dmt_poller, start_link, []}, restart => permanent},
+    Children = case application:get_env(dmt, slave_mode) of
+        {ok, true} ->
+            [Cache, Poller];
+        _ ->
+            [Cache]
+    end,
+    {ok, {#{strategy => rest_for_one, intensity => 10, period => 60}, Children}}.
 
 %% Application callbacks
 

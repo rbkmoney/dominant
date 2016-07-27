@@ -20,8 +20,12 @@ pipeline("dmt", 'docker-host', "_build/") {
      sh 'make w_container_xref'
     }
 
-    runStage('test') {
-     sh "make w_container_test"
+    runStage('test_api') {
+     sh "make w_container_test_api"
+    }
+
+    runStage('test_client') {
+     sh "make w_container_test_client"
     }
 
     runStage('dialyze') {

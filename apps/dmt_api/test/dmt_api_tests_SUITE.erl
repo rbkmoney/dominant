@@ -1,4 +1,4 @@
--module(dmt_tests_SUITE).
+-module(dmt_api_tests_SUITE).
 -include_lib("common_test/include/ct.hrl").
 
 -export([all/0]).

@@ -5,8 +5,10 @@
 
 -export([start_link/0]).
 
+-export([checkout_head/0]).
 -export([checkout/1]).
 -export([cache/1]).
+-export([cache_snapshot/1]).
 -export([commit/1]).
 
 %%
@@ -31,6 +33,10 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+-spec checkout_head() -> dmt:snapshot().
+checkout_head() ->
+    checkout({head, #'Head'{}}).
+
 -spec checkout(dmt:ref()) -> dmt:snapshot().
 checkout({head, #'Head'{}}) ->
     checkout({version, head()});
@@ -45,6 +51,10 @@ checkout({version, Version}) ->
 -spec cache(dmt:version()) -> dmt:snapshot().
 cache(Version) ->
     gen_server:call(?SERVER, {cache, Version}).
+
+-spec cache_snapshot(dmt:snapshot()) -> ok.
+cache_snapshot(Snapshot) ->
+    gen_server:call(?SERVER, {cache_snapshot, Snapshot}).
 
 -spec commit(dmt:commit()) -> ok.
 commit(Commit) ->
@@ -76,6 +86,9 @@ handle_call({cache, Version}, _From, State) ->
     Snapshot = dmt_history:travel(Version, dmt_mg:get_history(), Closest),
     true = ets:insert(?TABLE, Snapshot),
     {reply, Snapshot, State};
+handle_call({cache_snapshot, Snapshot}, _From, State) ->
+    true = ets:insert(?TABLE, Snapshot),
+    {reply, ok, State};
 handle_call({commit, #'Commit'{ops = Ops}}, _From, State) ->
     #'Snapshot'{version = Version, domain = Domain} = checkout({head, #'Head'{}}),
     NewSnapshot = #'Snapshot'{
@@ -109,8 +122,9 @@ code_change(_OldVsn, _State, _Extra) ->
 head() ->
     case ets:last(?TABLE) of
         '$end_of_table' ->
-            #'Snapshot'{version = Version} = dmt_history:head(dmt_mg:get_history()),
-            Version;
+            % #'Snapshot'{version = Version} = dmt_history:head(dmt_mg:get_history()),
+            % Version;
+            0;
         Version ->
             Version
     end.

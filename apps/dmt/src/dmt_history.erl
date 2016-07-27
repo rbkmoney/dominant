@@ -1,6 +1,7 @@
 -module(dmt_history).
 
 -export([head/1]).
+-export([head/2]).
 -export([travel/3]).
 
 -include_lib("dmt_proto/include/dmt_domain_config_thrift.hrl").
@@ -9,8 +10,12 @@
 head(History) when map_size(History) =:= 0 ->
     #'Snapshot'{version = 0, domain = dmt_domain:new()};
 head(History) ->
+    head(History, #'Snapshot'{version = 0, domain = dmt_domain:new()}).
+
+-spec head(dmt:history(), dmt:snapshot()) -> dmt:snapshot().
+head(History, Snapshot) ->
     Head = lists:max(maps:keys(History)),
-    travel(Head, History, #'Snapshot'{version = 0, domain = dmt_domain:new()}).
+    travel(Head, History, Snapshot).
 
 -spec travel(dmt:version(), dmt:history(), dmt:snapshot()) -> dmt:snapshot().
 travel(To, _History, #'Snapshot'{version = From} = Snapshot)
