@@ -1,4 +1,4 @@
--module(dmt_api_event_handler).
+-module(dmt_api_woody_event_handler).
 
 -behaviour(woody_event_handler).
 

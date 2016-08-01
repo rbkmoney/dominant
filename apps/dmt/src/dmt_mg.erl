@@ -17,7 +17,7 @@ call(Method, Args) ->
     Request = {{dmt_state_processing_thrift, 'Automaton'}, Method, Args},
     Context = woody_client:new_context(
         woody_client:make_id(<<"dmt">>),
-        dmt_api_event_handler
+        dmt_api_woody_event_handler
     ),
     {ok, MgunAutomatonUrl} = application:get_env(dmt, mgun_automaton_url),
     woody_client:call(Context, Request, #{url => MgunAutomatonUrl}).

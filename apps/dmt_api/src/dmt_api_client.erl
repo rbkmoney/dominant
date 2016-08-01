@@ -29,12 +29,16 @@ call(ServiceName, Function, Args) ->
     {Path, {Service, _Handler, _Opts}} = dmt_api:get_handler_spec(ServiceName),
     Call = {Service, Function, Args},
     Server = #{url => Host ++ ":" ++ Port ++ Path},
-    Context = woody_client:new_context(woody_client:make_id(<<"dmt_client">>), dmt_api_event_handler),
-    try woody_client:call(Context, Call, Server) of
+    Context = woody_client:new_context(woody_client:make_id(<<"dmt_client">>), dmt_api_woody_event_handler),
+    case woody_client:call_safe(Context, Call, Server) of
         {ok, _Context} ->
             ok;
         {{ok, Response}, _Context} ->
-            Response
-    catch {{exception, Exception}, _Context} ->
-        throw(Exception)
+            Response;
+        {{exception, Exception}, _Context} ->
+            throw(Exception);
+        {{error, Error}, _Context} ->
+            error(Error);
+        {{error, Error, _Stacktrace}, _Context} ->
+            error(Error)
     end.

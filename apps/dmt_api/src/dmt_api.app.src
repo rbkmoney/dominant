@@ -6,7 +6,6 @@
         kernel,
         stdlib,
         lager,
-        cowboy,
         dmt,
         woody
     ]},

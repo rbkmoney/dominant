@@ -11,7 +11,9 @@
         woody,
         dmt_proto
     ]},
-    {env, []},
+    {env, [
+        {mgun_automaton_url, "http://machinegun:8022/v1/automaton_service"}
+    ]},
     {modules, []},
     {maintainers, [
         "Andrey Mayorov <a.mayorov@rbkmoney.com>"

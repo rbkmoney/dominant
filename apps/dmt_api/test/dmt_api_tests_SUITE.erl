@@ -35,7 +35,6 @@ groups() ->
 %% starting/stopping
 -spec init_per_suite(term()) -> term().
 init_per_suite(C) ->
-    ok = application:set_env(dmt, mgun_automaton_url, "http://machinegun:8022/v1/automaton_service"),
     {ok, Apps} = application:ensure_all_started(dmt_api),
     ok = dmt_mg:start(),
     [{apps, Apps}|C].

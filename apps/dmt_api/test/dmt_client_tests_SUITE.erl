@@ -31,7 +31,6 @@ groups() ->
 %% starting/stopping
 -spec init_per_suite(term()) -> term().
 init_per_suite(C) ->
-    ok = application:set_env(dmt, mgun_automaton_url, "http://machinegun:8022/v1/automaton_service"),
     {ok, Apps} = application:ensure_all_started(dmt),
     {ok, _PollerPid} = supervisor:start_child(dmt, #
         {id => dmt_poller, start => {dmt_poller, start_link, []}, restart => permanent}

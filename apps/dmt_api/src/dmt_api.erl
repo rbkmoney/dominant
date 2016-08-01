@@ -25,26 +25,24 @@ stop(_State) ->
 -spec init([]) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec(), ...]}}.
 
 init([]) ->
-    {ok, {
-        #{strategy => one_for_one, intensity => 0, period => 1},
-        [woody_server:child_spec(
-            ?MODULE,
-            #{
-                ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "dominant")),
-                port => genlib_app:env(?MODULE, port, 8800),
-                net_opts => [],
-                event_handler => dmt_api_event_handler,
-                handlers => [
-                    get_handler_spec(repository),
-                    get_handler_spec(repository_client),
-                    get_handler_spec(mgun_processor)
-                ]
-            }
-        )]
-    }}.
+    WoodyChildSpec = woody_server:child_spec(
+        ?MODULE,
+        #{
+            ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "dominant")),
+            port => genlib_app:env(?MODULE, port, 8800),
+            net_opts => [],
+            event_handler => dmt_api_woody_event_handler,
+            handlers => [
+                get_handler_spec(repository),
+                get_handler_spec(repository_client),
+                get_handler_spec(mg_processor)
+            ]
+        }
+    ),
+    {ok, {#{strategy => one_for_one, intensity => 0, period => 1}, [WoodyChildSpec]}}.
 
 -spec get_handler_spec(Which) -> {Path, {woody_t:service(), module(), term()}} when
-    Which   :: repository | repository_client | mgun_processor,
+    Which   :: repository | repository_client | mg_processor,
     Path    :: iodata().
 
 get_handler_spec(repository) ->
@@ -59,7 +57,7 @@ get_handler_spec(repository_client) ->
         dmt_api_repository_client_handler,
         []
     }};
-get_handler_spec(mgun_processor) ->
+get_handler_spec(mg_processor) ->
     {"/v1/domain/mgun_processor", {
         {dmt_state_processing_thrift, 'Processor'},
         dmt_api_mgun_handler,

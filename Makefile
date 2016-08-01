@@ -60,7 +60,7 @@ test_api: submodules
 	$(REBAR) ct --suite apps/dmt_api/test/dmt_api_tests_SUITE.erl
 
 test_client: submodules
-	$(REBAR) ct --suite apps/dmt/test/dmt_client_tests_SUITE.erl
+	$(REBAR) ct --suite apps/dmt_api/test/dmt_client_tests_SUITE.erl
 
 w_container_test_client: submodules
 	{ \
