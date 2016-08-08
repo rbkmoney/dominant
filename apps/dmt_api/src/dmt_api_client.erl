@@ -38,7 +38,5 @@ call(ServiceName, Function, Args) ->
         {{exception, Exception}, _Context} ->
             throw(Exception);
         {{error, Error}, _Context} ->
-            error(Error);
-        {{error, Error, _Stacktrace}, _Context} ->
             error(Error)
     end.
