@@ -5,7 +5,7 @@
 
 %%
 
--include_lib("dmt_proto/include/dmt_domain_config_thrift.hrl").
+-include_lib("dmt/include/dmt_domain_config_thrift.hrl").
 
 -spec handle_function(
     woody_t:func(),
@@ -15,7 +15,7 @@
 ) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
 handle_function('Commit', {Version, Commit}, Context, _Opts) ->
     try
-        NewVersion = dmt:commit(Version, Commit),
+        NewVersion = dmt_api:commit(Version, Commit),
         {{ok, NewVersion}, Context}
     catch
         operation_conflict ->
@@ -25,7 +25,7 @@ handle_function('Commit', {Version, Commit}, Context, _Opts) ->
     end;
 handle_function('Checkout', {Reference}, Context, _Opts) ->
     try
-        Snapshot = dmt:checkout(Reference),
+        Snapshot = dmt_api:checkout(Reference),
         {{ok, Snapshot}, Context}
     catch
         version_not_found ->
@@ -33,7 +33,7 @@ handle_function('Checkout', {Reference}, Context, _Opts) ->
     end;
 handle_function('Pull', {Version}, Context, _Opts) ->
     try
-        History = dmt:pull(Version),
+        History = dmt_api:pull(Version),
         {{ok, History}, Context}
     catch
         version_not_found ->

@@ -1,5 +1,5 @@
 REBAR := $(shell which rebar3 2>/dev/null || which ./rebar3)
-SUBMODULES = apps/dmt_proto/damsel
+SUBMODULES = damsel
 SUBTARGETS = $(patsubst %,%/.git,$(SUBMODULES))
 
 ORG_NAME := rbkmoney
@@ -11,7 +11,7 @@ IMAGE_NAME = "$(ORG_NAME)/$(RELNAME):$(TAG)"
 
 CALL_ANYWHERE := submodules rebar-update compile xref lint dialyze start devrel release clean distclean
 
-CALL_W_CONTAINER := $(CALL_ANYWHERE) test_api
+CALL_W_CONTAINER := $(CALL_ANYWHERE) test
 
 include utils.mk
 
@@ -56,21 +56,8 @@ distclean:
 	rm -rfv _build _builds _cache _steps _temp
 
 # CALL_W_CONTAINER
-test_api: submodules
-	$(REBAR) ct --suite apps/dmt_api/test/dmt_api_tests_SUITE.erl
-
-test_client: submodules
-	$(REBAR) ct --suite apps/dmt_api/test/dmt_client_tests_SUITE.erl
-
-w_container_test_client: submodules
-	{ \
-	$(DOCKER_COMPOSE) up -d ; \
-	$(DOCKER_COMPOSE) exec -T -d dominant make start ; \
-	$(DOCKER_COMPOSE) exec -T dmt_client make test_client ; \
-	res=$$? ; \
-	$(DOCKER_COMPOSE) down ; \
-	exit $$res ; \
-	}
+test: submodules
+	$(REBAR) ct
 	
 
 # OTHER

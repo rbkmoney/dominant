@@ -5,7 +5,7 @@
 
 %%
 
--include_lib("dmt_proto/include/dmt_domain_config_thrift.hrl").
+-include_lib("dmt/include/dmt_domain_config_thrift.hrl").
 
 -spec handle_function(
     woody_t:func(),
@@ -15,7 +15,7 @@
 ) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
 handle_function('checkoutObject', {Reference, ObjectReference}, Context, _Opts) ->
     try
-        Object = dmt:checkout_object(Reference, ObjectReference),
+        Object = dmt_api:checkout_object(Reference, ObjectReference),
         {{ok, Object}, Context}
     catch
         object_not_found ->

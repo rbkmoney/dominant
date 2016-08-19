@@ -21,11 +21,7 @@ pipeline("dmt", 'docker-host', "_build/") {
     }
 
     runStage('test_api') {
-     sh "make w_container_test_api"
-    }
-
-    runStage('test_client') {
-     sh "make w_container_test_client"
+     sh "make w_container_test"
     }
 
     runStage('dialyze') {

@@ -1,4 +1,4 @@
--module(dmt_mg).
+-module(dmt_api_mg).
 
 -export([call/2]).
 -export([start/0]).
@@ -8,8 +8,8 @@
 -export([commit/2]).
 -export([read_history/1]).
 
--include_lib("dmt_proto/include/dmt_state_processing_thrift.hrl").
--include_lib("dmt/include/dmt_mg.hrl").
+-include("dmt_state_processing_thrift.hrl").
+-include("dmt_api_mg.hrl").
 
 -spec call(atom(), list(term())) ->
      {ok, term()} | ok | no_return().
@@ -19,7 +19,7 @@ call(Method, Args) ->
         woody_client:make_id(<<"dmt">>),
         dmt_api_woody_event_handler
     ),
-    {ok, MgunAutomatonUrl} = application:get_env(dmt, mgun_automaton_url),
+    {ok, MgunAutomatonUrl} = application:get_env(dmt_api, mgun_automaton_url),
     woody_client:call(Context, Request, #{url => MgunAutomatonUrl}).
 
 -spec start() -> ok.

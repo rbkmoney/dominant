@@ -6,9 +6,10 @@
         kernel,
         stdlib,
         lager,
-        dmt,
         woody
     ]},
     {mod, {dmt_api, []}},
-    {env, []}
+    {env, [
+        {mgun_automaton_url, "http://machinegun:8022/v1/automaton_service"}
+    ]}
 ]}.
