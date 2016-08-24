@@ -1,0 +1,14 @@
+{application, dmt_api, [
+    {description, "Domain config service interfaces"},
+    {vsn, "0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        dmt,
+        woody
+    ]},
+    {mod, {dmt_api, []}},
+    {env, []}
+]}.

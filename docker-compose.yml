@@ -1,0 +1,21 @@
+version: '2'
+services:
+  dominant:
+    image: rbkmoney/build:latest
+    volumes:
+      - .:/code
+    working_dir: /code
+    command: /sbin/init
+    links:
+      - machinegun
+  dmt_client:
+    image: rbkmoney/build:latest
+    volumes:
+      - .:/code
+    working_dir: /code
+    command: /sbin/init
+    links:
+      - dominant
+  machinegun:
+    image: rbkmoney/mg:dmt
+    command: /opt/mgun/bin/mgun foreground
