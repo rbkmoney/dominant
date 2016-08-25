@@ -50,11 +50,11 @@ commit(Version, Commit) ->
 
 %% utils
 
--spec read_history([dmt_state_processing_thrift:'Event'()]) -> dmt:history().
+-spec read_history([dmt_api_state_processing_thrift:'Event'()]) -> dmt:history().
 read_history(Events) ->
     read_history(Events, #{}).
 
--spec read_history([dmt_state_processing_thrift:'Event'()], dmt:history()) ->
+-spec read_history([dmt_api_state_processing_thrift:'Event'()], dmt:history()) ->
     dmt:history().
 read_history([], History) ->
     History;

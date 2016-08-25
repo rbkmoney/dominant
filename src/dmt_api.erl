@@ -109,7 +109,7 @@ get_handler_spec(repository_client) ->
     }};
 get_handler_spec(mg_processor) ->
     {"/v1/domain/mgun_processor", {
-        {dmt_state_processing_thrift, 'Processor'},
+        {dmt_api_state_processing_thrift, 'Processor'},
         dmt_api_mgun_handler,
         []
     }}.
