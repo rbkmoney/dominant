@@ -40,7 +40,9 @@ build('dominant', 'docker-host', finalHook) {
       sh "make wdeps_test"
     }
     runStage('make release') {
-      sh "make wc_release"
+      withGithubPrivkey {
+        sh "make wc_release"
+      }
     }
     runStage('build image') {
       sh "make build_image"
