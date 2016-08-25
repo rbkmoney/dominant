@@ -20,7 +20,7 @@
 
 -spec checkout(dmt:ref()) -> dmt:snapshot().
 checkout(Reference) ->
-    try 
+    try
         dmt_cache:checkout(Reference)
     catch
         {version_not_found, Version} ->
