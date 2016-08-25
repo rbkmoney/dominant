@@ -7,7 +7,7 @@
   0},
  {<<"dmt_client">>,
   {git,"git@github.com:rbkmoney/dmt_client.git",
-       {ref,"4a047e9ab44e1b4bf02c90f5b91cc81ade484edb"}},
+       {ref,"997b7a935a182c50a8297d18482cf88caa2be83b"}},
   0},
  {<<"genlib">>,
   {git,"https://github.com/rbkmoney/genlib.git",

@@ -79,7 +79,7 @@ init([]) ->
         ?MODULE,
         #{
             ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "dominant")),
-            port => genlib_app:env(?MODULE, port, 8800),
+            port => genlib_app:env(?MODULE, port, 8022),
             net_opts => [],
             event_handler => dmt_api_woody_event_handler,
             handlers => [
