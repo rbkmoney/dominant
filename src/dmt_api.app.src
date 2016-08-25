@@ -6,7 +6,8 @@
         kernel,
         stdlib,
         lager,
-        woody
+        woody,
+        dmt
     ]},
     {mod, {dmt_api, []}},
     {env, [

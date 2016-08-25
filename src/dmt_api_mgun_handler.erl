@@ -5,7 +5,7 @@
 
 %%
 
--include("dmt_state_processing_thrift.hrl").
+-include("dmt_api_state_processing_thrift.hrl").
 -include("dmt_api_mg.hrl").
 
 

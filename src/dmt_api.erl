@@ -74,7 +74,6 @@ stop(_State) ->
 %%
 
 init([]) ->
-    Cache = #{id => dmt_cache, start => {dmt_cache, start_link, []}, restart => permanent},
     API = woody_server:child_spec(
         ?MODULE,
         #{
@@ -89,7 +88,7 @@ init([]) ->
             ]
         }
     ),
-    Children = [Cache, API],
+    Children = [API],
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
 -spec get_handler_spec(Which) -> {Path, {woody_t:service(), module(), term()}} when
