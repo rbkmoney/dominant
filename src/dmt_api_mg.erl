@@ -14,7 +14,7 @@
 -spec call(atom(), list(term())) ->
      {ok, term()} | ok | no_return().
 call(Method, Args) ->
-    Request = {{dmt_state_processing_thrift, 'Automaton'}, Method, Args},
+    Request = {{dmt_api_state_processing_thrift, 'Automaton'}, Method, Args},
     Context = woody_client:new_context(
         woody_client:make_id(<<"dmt">>),
         dmt_api_woody_event_handler
