@@ -10,7 +10,5 @@
         dmt
     ]},
     {mod, {dmt_api, []}},
-    {env, [
-        {mgun_automaton_url, "http://machinegun:8022/v1/automaton_service"}
-    ]}
+    {env, []}
 ]}.

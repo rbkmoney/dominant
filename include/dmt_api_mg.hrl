@@ -1,1 +1,0 @@
--define(MG_TAG, <<"dmt_storage">>).

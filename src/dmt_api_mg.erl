@@ -1,52 +1,78 @@
 -module(dmt_api_mg).
 
--export([call/2]).
--export([start/0]).
--export([get_commit/1]).
--export([get_history/0]).
+-export([start/1]).
+-export([get_commit/2]).
 -export([get_history/1]).
--export([commit/2]).
+-export([get_history/3]).
+-export([commit/3]).
 -export([read_history/1]).
 
+-export([call/3]).
+
 -include("dmt_api_state_processing_thrift.hrl").
--include("dmt_api_mg.hrl").
 
--spec call(atom(), list(term())) ->
-     {ok, term()} | ok | no_return().
-call(Method, Args) ->
-    Request = {{dmt_api_state_processing_thrift, 'Automaton'}, Method, Args},
-    Context = woody_client:new_context(
-        woody_client:make_id(<<"dmt">>),
-        dmt_api_woody_event_handler
-    ),
-    {ok, MgunAutomatonUrl} = application:get_env(dmt_api, mgun_automaton_url),
-    woody_client:call(Context, Request, #{url => MgunAutomatonUrl}).
+-define(NS  , <<"domain-config">>).
+-define(ID  , <<"primary">>).
+-define(REF , {id, ?ID}).
 
--spec start() -> ok.
-start() ->
-    {{ok, {_, _}}, _} = call(start, {'Args', <<>>}),
-    ok.
+-type context() :: woody_client:context().
 
--spec get_commit(dmt:version()) -> dmt:commit().
-get_commit(Id) ->
-    #{Id := Commit} = get_history(),
-    Commit.
+%%
+
+-spec start(context()) ->
+    {ok, context()} | no_return().
+start(Context) ->
+    try call('Start', [?ID, <<>>], Context) catch
+        {{exception, #'MachineAlreadyExists'{}}, Context1} ->
+            {ok, Context1}
+    end.
+
+-spec get_commit(dmt:version(), context()) ->
+    {dmt:commit() | {error, version_not_found}, context()} | no_return().
+get_commit(ID, Context) ->
+    dmt_api_context:map(
+        get_history(get_prev_commit(ID), 1, Context),
+        fun
+            (#{ID := Commit}) -> Commit;
+            (#{})             -> {error, version_not_found};
+            (Error)           -> Error
+        end
+    ).
+
+get_prev_commit(1) ->
+    undefined;
+get_prev_commit(N) ->
+    N - 1.
 
 %% TODO: add range requests after they are fixed in mg
--spec get_history() -> dmt:history().
-get_history() ->
-    get_history(undefined).
+-spec get_history(context()) ->
+    {dmt:history(), context()}.
+get_history(Context) ->
+    get_history(undefined, undefined, Context).
 
--spec get_history(dmt:version() | undefined) -> dmt:history().
-get_history(After) ->
-    {{ok, History}, _Context} = call(getHistory, [{tag, ?MG_TAG}, #'HistoryRange'{'after' = After}]),
-    read_history(History).
+-spec get_history(dmt:version() | undefined, pos_integer() | undefined, context()) ->
+    {dmt:history() | {error, version_not_found}, context()}.
+get_history(After, Limit, Context) ->
+    Range = #'HistoryRange'{'after' = After, 'limit' = Limit},
+    try dmt_api_context:map(call('GetHistory', [?REF, Range], Context), fun read_history/1) catch
+        {{exception, #'EventNotFound'{}}, Context1} ->
+            {{error, version_not_found}, Context1}
+    end.
 
--spec commit(dmt:version(), dmt:commit()) -> ok.
-commit(Version, Commit) ->
-    Call = <<"commit", (term_to_binary({Version, Commit}))/binary>>,
-    {{ok, <<"ok">>}, _Context} = call(call, [{tag, ?MG_TAG}, Call]),
-    ok.
+-spec commit(dmt:version(), dmt:commit(), context()) ->
+    {dmt:version() | {error, version_not_found | operation_conflict}, context()}.
+commit(Version, Commit, Context) ->
+    Call = term_to_binary({commit, Version, Commit}),
+    dmt_api_context:map(call('Call', [?REF, Call], Context), fun binary_to_term/1).
+
+%%
+
+-spec call(atom(), list(term()), context()) ->
+     {ok, context()} | {{ok, term()}, context()} | no_return().
+call(Method, Args, Context) ->
+    Request = {{dmt_api_state_processing_thrift, 'Automaton'}, Method, [?NS | Args]},
+    {ok, URL} = application:get_env(dmt_api, automaton_service_url),
+    woody_client:call(Context, Request, #{url => URL}).
 
 %% utils
 
