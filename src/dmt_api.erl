@@ -56,7 +56,7 @@ reference_to_limit({version, Version}) ->
     Version.
 
 -spec checkout_object(dmt:ref(), dmt:object_ref(), context()) ->
-    {dmt_domain_config_thrift:'VersionedObject'(), context()}.
+    {dmt_domain_config_thrift:'VersionedObject'() | {error, version_not_found | object_not_found}, context()}.
 checkout_object(Reference, ObjectReference, Context) ->
     dmt_api_context:map(
         checkout(Reference, Context),
@@ -80,7 +80,7 @@ pull(Version, Context) ->
     dmt_api_mg:get_history(Version, undefined, Context).
 
 -spec commit(dmt:version(), dmt:commit(), context()) ->
-    {dmt:version() | {error, operation_conflict}, context()}.
+    {dmt:version() | {error, version_not_found | operation_conflict}, context()}.
 commit(Version, Commit, Context) ->
     dmt_api_context:map(
         dmt_api_mg:commit(Version, Commit, Context),
@@ -106,8 +106,10 @@ apply_commit(VersionWas, #'Commit'{ops = Ops}, History) ->
                 Reason ->
                     {error, Reason}
             end;
-        #'Snapshot'{version = Version} ->
-            {error, {head_mismatch, Version}}
+        #'Snapshot'{version = Version} when Version > VersionWas ->
+            {error, {head_mismatch, Version}};
+        #'Snapshot'{} ->
+            {error, version_not_found}
     end.
 
 %% behaviours

@@ -13,7 +13,7 @@
     woody_server_thrift_handler:args(),
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
-) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
+) -> {woody_server_thrift_handler:result(), woody_client:context()} | no_return().
 handle_function('ProcessCall', {#'CallArgs'{arg = Payload, history = History}}, Context, _Opts) ->
     {Response, Events} = handle_call(binary_to_term(Payload), dmt_api_mg:read_history(History)),
     {
@@ -33,7 +33,9 @@ handle_call({commit, Version, Commit}, History) ->
     case dmt_api:apply_commit(Version, Commit, History) of
         {ok, Snapshot} ->
             {Snapshot, [Commit]};
+        {error, version_not_found} ->
+            {{error, version_not_found}, []};
         {error, Reason} ->
-            lager:info("commit failed: ~p", [Reason]),
+            _ = lager:info("commit failed: ~p", [Reason]),
             {{error, operation_conflict}, []}
     end.

@@ -12,7 +12,7 @@
     woody_server_thrift_handler:args(),
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
-) -> {ok | {ok, woody_server_thrift_handler:result()}, woody_client:context()} | no_return().
+) -> {woody_server_thrift_handler:result(), woody_client:context()} | no_return().
 handle_function('Commit', {Version, Commit}, Context, _Opts) ->
     case dmt_api:commit(Version, Commit, Context) of
         {VersionNext, Context1} when is_integer(VersionNext) ->
