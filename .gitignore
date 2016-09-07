@@ -6,10 +6,9 @@ erl_crash.dump
 .tags*
 *.sublime-workspace
 .DS_Store
+Dockerfile
+docker-compose.yml
 
-# wercker
-/_builds/
-/_cache/
-/_projects/
-/_steps/
-/_temp/
+#thrift
+/include/dmt_*_thrift.hrl
+/src/dmt_*_thrift.erl

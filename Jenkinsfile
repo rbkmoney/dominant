@@ -1,34 +1,57 @@
 #!groovy
 
-// Args:
-// GitHub repo name
-// Jenkins agent label
-// Tracing artifacts to be stored alongside build logs
-// Optional: artifacts to cache between the builds
-pipeline("dmt", 'docker-host', "_build/") {
+def finalHook = {
+  runStage('store CT logs') {
+    archive '_build/test/logs/'
+  }
+}
 
-    // ToDo: Uncomment the stage as soon as Elvis is in the build image!
-    // runStage('lint') {
-    //   sh 'make w_container_lint'
-    // }
+build('dominant', 'docker-host', finalHook) {
+  checkoutRepo()
+  loadBuildUtils()
 
+  def pipeDefault
+  runStage('load pipeline') {
+    env.JENKINS_LIB = "build_utils/jenkins_lib"
+    pipeDefault = load("${env.JENKINS_LIB}/pipeDefault.groovy")
+  }
+
+  pipeDefault() {
+    runStage('submodules') {
+      withGithubPrivkey {
+        sh 'make submodules'
+      }
+    }
     runStage('compile') {
-     sh 'make w_container_compile'
+      withGithubPrivkey {
+        sh 'make wc_compile'
+      }
     }
-
+    runStage('lint') {
+      sh 'make wc_lint'
+    }
     runStage('xref') {
-     sh 'make w_container_xref'
+      sh 'make wc_xref'
     }
-
-    runStage('test_api') {
-     sh "make w_container_test_api"
-    }
-
-    runStage('test_client') {
-     sh "make w_container_test_client"
-    }
-
     runStage('dialyze') {
-     sh 'make w_container_dialyze'
+      sh 'make wc_dialyze'
     }
+    runStage('test') {
+      sh "make wdeps_test"
+    }
+    runStage('make release') {
+      withGithubPrivkey {
+        sh "make wc_release"
+      }
+    }
+    runStage('build image') {
+      sh "make build_image"
+    }
+
+    if (env.BRANCH_NAME == 'master') {
+      runStage('push image') {
+        sh "make push_image"
+      }
+    }
+  }
 }
