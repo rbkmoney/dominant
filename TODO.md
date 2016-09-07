@@ -13,3 +13,4 @@
 * Simplify cache interfaces
 * Encode machine events and responses with a schema-aware protocol
     * Thrift / compact protocol?
+* Fix potential race when a `Repository` request getting processed earlier than the start machine request being issued.
