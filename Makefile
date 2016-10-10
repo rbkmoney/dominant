@@ -14,8 +14,7 @@ SERVICE_IMAGE_PUSH_TAG ?= $(SERVICE_IMAGE_TAG)
 
 # Base image for the service
 BASE_IMAGE_NAME := service_erlang
-BASE_IMAGE_TAG := 2202a02cbcb71982fea2e901ffb2b1ca5da610ae
-
+BASE_IMAGE_TAG := 4000337c0ca19978467f62ca6505a03c2569de40
 
 ## Variables required for utils_container.mk
 
