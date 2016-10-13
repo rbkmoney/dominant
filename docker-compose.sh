@@ -13,7 +13,7 @@ services:
     depends_on:
      - machinegun
   machinegun:
-    image: dr.rbkmoney.com/rbkmoney/machinegun:6a63173edec1aae1d4ee23f441307c598aea91f0
+    image: dr.rbkmoney.com/rbkmoney/machinegun:4c29acdcdce065dbba1f3c8ee1683caea837869c
     volumes:
       - ./test/machinegun/sys.config:/opt/machinegun/releases/0.1.0/sys.config
 
