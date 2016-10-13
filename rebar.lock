@@ -3,7 +3,7 @@
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"1.0.2">>},2},
  {<<"dmt">>,
   {git,"git@github.com:rbkmoney/dmt_core.git",
-       {ref,"fe0224b62ceda8e4e6071a81eb0997574522b082"}},
+       {ref,"3e362d6757f5b22fc28dcdc5fff5b8844906cd07"}},
   0},
  {<<"dmt_client">>,
   {git,"git@github.com:rbkmoney/dmt_client.git",
