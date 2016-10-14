@@ -9,7 +9,7 @@
 
 -export([call/3]).
 
--include("dmt_api_state_processing_thrift.hrl").
+-include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary">>).
@@ -70,17 +70,17 @@ commit(Version, Commit, Context) ->
 -spec call(atom(), list(term()), context()) ->
      {ok, context()} | {{ok, term()}, context()} | no_return().
 call(Method, Args, Context) ->
-    Request = {{dmt_api_state_processing_thrift, 'Automaton'}, Method, [?NS | Args]},
+    Request = {{dmsl_state_processing_thrift, 'Automaton'}, Method, [?NS | Args]},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
     woody_client:call(Context, Request, #{url => URL}).
 
 %% utils
 
--spec read_history([dmt_api_state_processing_thrift:'Event'()]) -> dmt:history().
+-spec read_history([dmsl_state_processing_thrift:'Event'()]) -> dmt:history().
 read_history(Events) ->
     read_history(Events, #{}).
 
--spec read_history([dmt_api_state_processing_thrift:'Event'()], dmt:history()) ->
+-spec read_history([dmsl_state_processing_thrift:'Event'()], dmt:history()) ->
     dmt:history().
 read_history([], History) ->
     History;

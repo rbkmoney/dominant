@@ -6,7 +6,9 @@
         kernel,
         stdlib,
         lager,
+        lager_logstash_formatter,
         woody,
+        dmsl,
         dmt
     ]},
     {mod, {dmt_api, []}},

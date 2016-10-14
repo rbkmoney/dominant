@@ -5,7 +5,7 @@
 
 %%
 
--include("dmt_api_state_processing_thrift.hrl").
+-include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
 
 
 -spec handle_function(
