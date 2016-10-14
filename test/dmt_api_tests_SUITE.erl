@@ -10,7 +10,7 @@
 -export([update/1]).
 -export([delete/1]).
 
--include_lib("dmt/include/dmt_domain_config_thrift.hrl").
+-include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 %% tests descriptions
 
@@ -105,10 +105,10 @@ next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
 
 fixture_domain_object(Ref, Data) ->
-    {category, #'CategoryObject'{
-        ref = #'CategoryRef'{id = Ref},
-        data = #'Category'{name = Data, description = Data}
+    {category, #domain_CategoryObject{
+        ref = #domain_CategoryRef{id = Ref},
+        data = #domain_Category{name = Data, description = Data}
     }}.
 
 fixture_object_ref(Ref) ->
-    {category, #'CategoryRef'{id = Ref}}.
+    {category, #domain_CategoryRef{id = Ref}}.

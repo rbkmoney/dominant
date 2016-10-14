@@ -14,7 +14,7 @@
 -export([stop/1]).
 -export([init/1]).
 
--include_lib("dmt/include/dmt_domain_config_thrift.hrl").
+-include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 %% API
 
@@ -56,7 +56,7 @@ reference_to_limit({version, Version}) ->
     Version.
 
 -spec checkout_object(dmt:ref(), dmt:object_ref(), context()) ->
-    {dmt_domain_config_thrift:'VersionedObject'() | {error, version_not_found | object_not_found}, context()}.
+    {dmsl_domain_config_thrift:'VersionedObject'() | {error, version_not_found | object_not_found}, context()}.
 checkout_object(Reference, ObjectReference, Context) ->
     dmt_api_context:map(
         checkout(Reference, Context),
@@ -151,19 +151,19 @@ init([]) ->
 
 get_handler_spec(repository) ->
     {"/v1/domain/repository", {
-        {dmt_domain_config_thrift, 'Repository'},
+        {dmsl_domain_config_thrift, 'Repository'},
         dmt_api_repository_handler,
         []
     }};
 get_handler_spec(repository_client) ->
     {"/v1/domain/repository_client", {
-        {dmt_domain_config_thrift, 'RepositoryClient'},
+        {dmsl_domain_config_thrift, 'RepositoryClient'},
         dmt_api_repository_client_handler,
         []
     }};
 get_handler_spec(state_processor) ->
     {"/v1/stateproc", {
-        {dmt_api_state_processing_thrift, 'Processor'},
+        {dmsl_state_processing_thrift, 'Processor'},
         dmt_api_state_processor,
         []
     }}.

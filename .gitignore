@@ -8,7 +8,3 @@ erl_crash.dump
 .DS_Store
 Dockerfile
 docker-compose.yml
-
-#thrift
-/include/dmt_*_thrift.hrl
-/src/dmt_*_thrift.erl
