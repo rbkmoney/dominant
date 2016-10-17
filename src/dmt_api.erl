@@ -116,9 +116,7 @@ apply_commit(VersionWas, #'Commit'{ops = Ops}, History) ->
 -spec start(application:start_type(), term()) -> {ok, pid()} | {error, term()}.
 
 start(_StartType, _Args) ->
-    {ok, Pid} = supervisor:start_link({local, ?MODULE}, ?MODULE, []),
-    {ok, _Context} = dmt_api_mg:start(dmt_api_context:new()),
-    {ok, Pid}.
+    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 -spec stop(term()) -> ok.
 

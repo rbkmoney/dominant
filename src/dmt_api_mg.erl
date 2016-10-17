@@ -72,7 +72,13 @@ commit(Version, Commit, Context) ->
 call(Method, Args, Context) ->
     Request = {{dmsl_state_processing_thrift, 'Automaton'}, Method, [?NS | Args]},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
-    woody_client:call(Context, Request, #{url => URL}).
+    try
+        woody_client:call(Context, Request, #{url => URL})
+    catch
+        throw:{{exception, #'MachineNotFound'{}}, Context1} ->
+            {ok, Context2} = start(Context1),
+            woody_client:call(Context2, Request, #{url => URL})
+    end.
 
 %% utils
 
