@@ -50,10 +50,11 @@ get_prev_commit(N) ->
 get_history(Context) ->
     get_history(undefined, undefined, Context).
 
+%% TODO: change this interface to accept dmt:version only
 -spec get_history(dmt:version() | undefined, pos_integer() | undefined, context()) ->
     {dmt:history() | {error, version_not_found}, context()}.
 get_history(After, Limit, Context) ->
-    Range = #'HistoryRange'{'after' = After, 'limit' = Limit},
+    Range = #'HistoryRange'{'after' = prepare_event_id(After), 'limit' = Limit},
     try dmt_api_context:map(call('GetHistory', [?REF, Range], Context), fun read_history/1) catch
         {{exception, #'EventNotFound'{}}, Context1} ->
             {{error, version_not_found}, Context1}
@@ -92,3 +93,8 @@ read_history([], History) ->
     History;
 read_history([#'Event'{id = Id, event_payload = BinaryPayload} | Rest], History) ->
     read_history(Rest, History#{Id => binary_to_term(BinaryPayload)}).
+
+prepare_event_id(ID) when is_integer(ID) andalso ID > 0 ->
+    ID;
+prepare_event_id(_) ->
+    undefined.
