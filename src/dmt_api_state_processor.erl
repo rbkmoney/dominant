@@ -25,6 +25,8 @@ handle_function('ProcessCall', {#'CallArgs'{arg = Payload, history = History}}, 
         Context
     };
 handle_function('ProcessSignal', {#'SignalArgs'{signal = {init, #'InitSignal'{}}}}, Context, _Opts) ->
+    {#'SignalResult'{events = [], action = #'ComplexAction'{}}, Context};
+handle_function('ProcessSignal', {#'SignalArgs'{signal = {repair, #'RepairSignal'{}}}}, Context, _Opts) ->
     {#'SignalResult'{events = [], action = #'ComplexAction'{}}, Context}.
 
 %%
