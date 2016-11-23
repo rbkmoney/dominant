@@ -126,10 +126,11 @@ stop(_State) ->
 %%
 
 init([]) ->
+    {ok, IP} = inet:parse_address(genlib_app:env(?MODULE, ip, "::")),
     API = woody_server:child_spec(
         ?MODULE,
         #{
-            ip => dmt_api_utils:get_hostname_ip(genlib_app:env(?MODULE, host, "dominant")),
+            ip => IP,
             port => genlib_app:env(?MODULE, port, 8022),
             net_opts => [],
             event_handler => dmt_api_woody_event_handler,
