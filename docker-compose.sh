@@ -12,10 +12,13 @@ services:
     command: /sbin/init
     depends_on:
      - machinegun
+
   machinegun:
-    image: dr.rbkmoney.com/rbkmoney/machinegun:4c29acdcdce065dbba1f3c8ee1683caea837869c
+    image: dr.rbkmoney.com/rbkmoney/machinegun:faa1156dd07a5cc72413616e3c73d48767654d3c
     volumes:
       - ./test/machinegun/sys.config:/opt/machinegun/releases/0.1.0/sys.config
+    environment:
+      - SERVICE_NAME=machinegun
 
 
 networks:
