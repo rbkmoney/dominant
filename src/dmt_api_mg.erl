@@ -10,19 +10,25 @@
 -export([call/3]).
 
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
+-include_lib("dmsl/include/dmsl_base_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary">>).
 -define(REF , {id, ?ID}).
 
 -type context() :: woody_client:context().
+-type ref()           :: dmsl_state_processing_thrift:'Reference'().
+-type ns()            :: dmsl_base_thrift:'Namespace'().
+-type history_range() :: dmsl_state_processing_thrift:'HistoryRange'().
+
+-type descriptor()    :: dmsl_state_processing_thrift:'MachineDescriptor'().
 
 %%
 
 -spec start(context()) ->
     {ok, context()} | no_return().
 start(Context) ->
-    try call('Start', [?ID, <<>>], Context) catch
+    try call('Start', [?NS, ?ID, <<>>], Context) catch
         {{exception, #'MachineAlreadyExists'{}}, Context1} ->
             {ok, Context1}
     end.
@@ -55,7 +61,8 @@ get_history(Context) ->
     {dmt:history() | {error, version_not_found}, context()}.
 get_history(After, Limit, Context) ->
     Range = #'HistoryRange'{'after' = prepare_event_id(After), 'limit' = Limit},
-    try dmt_api_context:map(call('GetHistory', [?REF, Range], Context), fun read_history/1) catch
+    Descriptor = prepare_descriptor(?NS, ?REF, Range),
+    try dmt_api_context:map(call('GetMachine', [Descriptor], Context), fun read_history/1) catch
         {{exception, #'EventNotFound'{}}, Context1} ->
             {{error, version_not_found}, Context1}
     end.
@@ -63,15 +70,16 @@ get_history(After, Limit, Context) ->
 -spec commit(dmt:version(), dmt:commit(), context()) ->
     {dmt:version() | {error, version_not_found | operation_conflict}, context()}.
 commit(Version, Commit, Context) ->
+    Descriptor = prepare_descriptor(?NS, ?REF, #'HistoryRange'{}),
     Call = term_to_binary({commit, Version, Commit}),
-    dmt_api_context:map(call('Call', [?REF, Call], Context), fun binary_to_term/1).
+    dmt_api_context:map(call('Call', [Descriptor, Call], Context), fun binary_to_term/1).
 
 %%
 
 -spec call(atom(), list(term()), context()) ->
      {ok, context()} | {{ok, term()}, context()} | no_return().
 call(Method, Args, Context) ->
-    Request = {{dmsl_state_processing_thrift, 'Automaton'}, Method, [?NS | Args]},
+    Request = {{dmsl_state_processing_thrift, 'Automaton'}, Method, Args},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
     try
         woody_client:call(Context, Request, #{url => URL})
@@ -83,8 +91,8 @@ call(Method, Args, Context) ->
 
 %% utils
 
--spec read_history([dmsl_state_processing_thrift:'Event'()]) -> dmt:history().
-read_history(Events) ->
+-spec read_history(dmsl_state_processing_thrift:'Machine'()) -> dmt:history().
+read_history(#'Machine'{history = Events}) ->
     read_history(Events, #{}).
 
 -spec read_history([dmsl_state_processing_thrift:'Event'()], dmt:history()) ->
@@ -98,3 +106,12 @@ prepare_event_id(ID) when is_integer(ID) andalso ID > 0 ->
     ID;
 prepare_event_id(_) ->
     undefined.
+
+
+-spec prepare_descriptor(ns(), ref(), history_range()) -> descriptor().
+prepare_descriptor(NS, Ref, Range) ->
+    #'MachineDescriptor'{
+        ns = NS,
+        ref = Ref,
+        range = Range
+    }.
