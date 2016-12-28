@@ -13,12 +13,12 @@
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
 ) -> {woody_server_thrift_handler:result(), woody_client:context()} | no_return().
-handle_function('checkoutObject', {Reference, ObjectReference}, Context, _Opts) ->
+handle_function('checkoutObject', [Reference, ObjectReference], Context, _Opts) ->
     case dmt_api:checkout_object(Reference, ObjectReference, Context) of
-        {Object = #'VersionedObject'{}, Context1} ->
-            {Object, Context1};
-        {{error, object_not_found}, Context1} ->
-            throw({#'ObjectNotFound'{}, Context1});
-        {{error, version_not_found}, Context1} ->
-            throw({#'VersionNotFound'{}, Context1})
+        Object = #'VersionedObject'{} ->
+            {ok, Object};
+        {error, object_not_found} ->
+            woody_error:raise(business, #'ObjectNotFound'{});
+        {error, version_not_found} ->
+            woody_error:raise(business, #'VersionNotFound'{})
     end.

@@ -26,24 +26,24 @@
 %%
 
 -spec start(context()) ->
-    {ok, context()} | no_return().
+    ok | no_return().
 start(Context) ->
     try call('Start', [?NS, ?ID, <<>>], Context) catch
-        {{exception, #'MachineAlreadyExists'{}}, Context1} ->
-            {ok, Context1}
+        #'MachineAlreadyExists'{} ->
+            ok
     end.
 
 -spec get_commit(dmt:version(), context()) ->
-    {dmt:commit() | {error, version_not_found}, context()} | no_return().
+    dmt:commit() | {error, version_not_found} | no_return().
 get_commit(ID, Context) ->
-    dmt_api_context:map(
-        get_history(get_prev_commit(ID), 1, Context),
-        fun
-            (#{ID := Commit}) -> Commit;
-            (#{})             -> {error, version_not_found};
-            (Error)           -> Error
-        end
-    ).
+    case get_history(get_prev_commit(ID), 1, Context) of
+        #{ID := Commit} ->
+            Commit;
+        #{} ->
+            {error, version_not_found};
+        Error -> 
+            Error
+    end.
 
 get_prev_commit(1) ->
     undefined;
@@ -52,41 +52,48 @@ get_prev_commit(N) ->
 
 %% TODO: add range requests after they are fixed in mg
 -spec get_history(context()) ->
-    {dmt:history(), context()}.
+    dmt:history().
 get_history(Context) ->
     get_history(undefined, undefined, Context).
 
 %% TODO: change this interface to accept dmt:version only
 -spec get_history(dmt:version() | undefined, pos_integer() | undefined, context()) ->
-    {dmt:history() | {error, version_not_found}, context()}.
+    dmt:history() | {error, version_not_found}.
 get_history(After, Limit, Context) ->
     Range = #'HistoryRange'{'after' = prepare_event_id(After), 'limit' = Limit},
     Descriptor = prepare_descriptor(?NS, ?REF, Range),
-    try dmt_api_context:map(call('GetMachine', [Descriptor], Context), fun read_history/1) catch
-        {{exception, #'EventNotFound'{}}, Context1} ->
-            {{error, version_not_found}, Context1}
+    try read_history(call('GetMachine', [Descriptor], Context)) catch
+        #'EventNotFound'{} ->
+            {error, version_not_found}
     end.
 
 -spec commit(dmt:version(), dmt:commit(), context()) ->
-    {dmt:version() | {error, version_not_found | operation_conflict}, context()}.
+    dmt:version() | {error, version_not_found | operation_conflict}.
 commit(Version, Commit, Context) ->
     Descriptor = prepare_descriptor(?NS, ?REF, #'HistoryRange'{}),
     Call = term_to_binary({commit, Version, Commit}),
-    dmt_api_context:map(call('Call', [Descriptor, Call], Context), fun binary_to_term/1).
+    binary_to_term(call('Call', [Descriptor, Call], Context)).
 
 %%
 
--spec call(atom(), list(term()), context()) ->
-     {ok, context()} | {{ok, term()}, context()} | no_return().
+-spec call(atom(), list(term()), context()) -> term() | no_return().
 call(Method, Args, Context) ->
     Request = {{dmsl_state_processing_thrift, 'Automaton'}, Method, Args},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
-    try
-        woody_client:call(Context, Request, #{url => URL})
-    catch
-        throw:{{exception, #'MachineNotFound'{}}, Context1} ->
-            {ok, Context2} = start(Context1),
-            woody_client:call(Context2, Request, #{url => URL})
+    Opts = #{url => URL, event_handler => {woody_event_handler_default, undefined}},
+    case woody_client:call(Request, Opts, Context) of
+        {ok, Result} ->
+            Result;
+        {exception, #'MachineNotFound'{}} ->
+            ok = start(Context),
+            case woody_client:call(Request, Opts, Context) of
+                {ok, Result} ->
+                    Result;
+                {exception, Exception} ->
+                    error(Exception)
+            end;
+        {exception, Exception} ->
+            error(Exception)
     end.
 
 %% utils
