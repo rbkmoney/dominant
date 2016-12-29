@@ -27,7 +27,7 @@ checkout(Reference, Context) ->
     catch
         version_not_found ->
             case try_get_snapshot(Reference, Context) of
-                Snapshot = #'Snapshot'{} -> 
+                Snapshot = #'Snapshot'{} ->
                     dmt_cache:cache_snapshot(Snapshot);
                 {error, version_not_found} ->
                     {error, version_not_found}
@@ -56,11 +56,10 @@ reference_to_limit({version, Version}) ->
     dmsl_domain_config_thrift:'VersionedObject'() | {error, version_not_found | object_not_found}.
 checkout_object(Reference, ObjectReference, Context) ->
     Snapshot = checkout(Reference, Context),
-    lager:info("ALARM #2: checkout done, snapshot: ~n~p", [Snapshot]),
     case Snapshot of
         #'Snapshot'{} ->
             try_get_object(ObjectReference, Snapshot);
-        {error, _} -> 
+        {error, _} ->
             Snapshot
     end.
 
@@ -139,7 +138,7 @@ init([]) ->
     Children = [API],
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
--spec get_handler_spec(Which) -> {Path, {woody_t:service(), module(), term()}} when
+-spec get_handler_spec(Which) -> {Path, {woody:service(), module()}} when
     Which   :: repository | repository_client | state_processor,
     Path    :: iodata().
 

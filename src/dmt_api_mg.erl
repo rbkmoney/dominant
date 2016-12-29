@@ -41,7 +41,7 @@ get_commit(ID, Context) ->
             Commit;
         #{} ->
             {error, version_not_found};
-        Error -> 
+        Error ->
             Error
     end.
 
@@ -68,7 +68,7 @@ get_history(After, Limit, Context) ->
     end.
 
 -spec commit(dmt:version(), dmt:commit(), context()) ->
-    dmt:version() | {error, version_not_found | operation_conflict}.
+    dmt:snapshot() | {error, version_not_found | operation_conflict}.
 commit(Version, Commit, Context) ->
     Descriptor = prepare_descriptor(?NS, ?REF, #'HistoryRange'{}),
     Call = term_to_binary({commit, Version, Commit}),

@@ -8,11 +8,11 @@
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -spec handle_function(
-    woody_t:func(),
+    woody:func(),
     woody_server_thrift_handler:args(),
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
-) -> woody_server_thrift_handler:result() | no_return().
+) -> {ok, woody_server_thrift_handler:result()} | no_return().
 handle_function('Commit', [Version, Commit], Context, _Opts) ->
     case dmt_api:commit(Version, Commit, Context) of
         VersionNext when is_integer(VersionNext) ->

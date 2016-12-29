@@ -9,11 +9,11 @@
 
 
 -spec handle_function(
-    woody_t:func(),
+    woody:func(),
     woody_server_thrift_handler:args(),
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
-) -> woody_server_thrift_handler:result() | no_return().
+) -> {ok, woody_server_thrift_handler:result()} | no_return().
 handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], _Context, _Opts) ->
     {Response, Events} = handle_call(binary_to_term(Payload), dmt_api_mg:read_history(Machine)),
     {ok, #'CallResult'{
