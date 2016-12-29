@@ -29,7 +29,7 @@
     ok | no_return().
 start(Context) ->
     try call('Start', [?NS, ?ID, <<>>], Context) catch
-        #'MachineAlreadyExists'{} ->
+        error:#'MachineAlreadyExists'{} ->
             ok
     end.
 
@@ -63,7 +63,7 @@ get_history(After, Limit, Context) ->
     Range = #'HistoryRange'{'after' = prepare_event_id(After), 'limit' = Limit},
     Descriptor = prepare_descriptor(?NS, ?REF, Range),
     try read_history(call('GetMachine', [Descriptor], Context)) catch
-        #'EventNotFound'{} ->
+        error:#'EventNotFound'{} ->
             {error, version_not_found}
     end.
 
