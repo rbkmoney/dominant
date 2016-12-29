@@ -8,31 +8,31 @@
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -spec handle_function(
-    woody_t:func(),
+    woody:func(),
     woody_server_thrift_handler:args(),
     woody_client:context(),
     woody_server_thrift_handler:handler_opts()
-) -> {woody_server_thrift_handler:result(), woody_client:context()} | no_return().
-handle_function('Commit', {Version, Commit}, Context, _Opts) ->
+) -> {ok, woody_server_thrift_handler:result()} | no_return().
+handle_function('Commit', [Version, Commit], Context, _Opts) ->
     case dmt_api:commit(Version, Commit, Context) of
-        {VersionNext, Context1} when is_integer(VersionNext) ->
-            {VersionNext, Context1};
-        {{error, operation_conflict}, Context1} ->
-            throw({#'OperationConflict'{}, Context1});
-        {{error, version_not_found}, Context1} ->
-            throw({#'VersionNotFound'{}, Context1})
+        VersionNext when is_integer(VersionNext) ->
+            {ok, VersionNext};
+        {error, operation_conflict} ->
+            woody_error:raise(business, #'OperationConflict'{});
+        {error, version_not_found} ->
+            woody_error:raise(business, #'VersionNotFound'{})
     end;
-handle_function('Checkout', {Reference}, Context, _Opts) ->
+handle_function('Checkout', [Reference], Context, _Opts) ->
     case dmt_api:checkout(Reference, Context) of
-        {Snapshot = #'Snapshot'{}, Context1} ->
-            {Snapshot, Context1};
-        {{error, version_not_found}, Context1} ->
-            throw({#'VersionNotFound'{}, Context1})
+        Snapshot = #'Snapshot'{} ->
+            {ok, Snapshot};
+        {error, version_not_found} ->
+            woody_error:raise(business, #'VersionNotFound'{})
     end;
-handle_function('Pull', {Version}, Context, _Opts) ->
+handle_function('Pull', [Version], Context, _Opts) ->
     case dmt_api:pull(Version, Context) of
-        {History = #{}, Context1} ->
-            {History, Context1};
-        {{error, version_not_found}, Context1} ->
-            throw({#'VersionNotFound'{}, Context1})
+        History = #{} ->
+            {ok, History};
+        {error, version_not_found} ->
+            woody_error:raise(business, #'VersionNotFound'{})
     end.
