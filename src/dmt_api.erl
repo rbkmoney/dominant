@@ -125,11 +125,10 @@ init([]) ->
     API = woody_server:child_spec(
         ?MODULE,
         #{
-            ip => IP,
-            port => genlib_app:env(?MODULE, port, 8022),
-            net_opts => #{},
+            ip            => IP,
+            port          => genlib_app:env(?MODULE, port, 8022),
             event_handler => woody_event_handler_default,
-            handlers => [
+            handlers      => [
                 get_handler_spec(repository),
                 get_handler_spec(repository_client),
                 get_handler_spec(state_processor)
