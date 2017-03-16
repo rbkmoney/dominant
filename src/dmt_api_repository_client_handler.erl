@@ -7,15 +7,14 @@
 
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
--spec handle_function(
-    woody:func(),
-    woody_server_thrift_handler:args(),
-    woody_client:context(),
-    woody_server_thrift_handler:handler_opts()
-) -> {ok, woody_server_thrift_handler:result()} | no_return().
+-type context() :: woody_context:ctx().
+
+-spec handle_function
+    ('checkoutObject', woody:args(), context(), woody:options()) ->
+        {ok, dmsl_domain_config_thrift:'VersionedObject'()} | no_return().
 handle_function('checkoutObject', [Reference, ObjectReference], Context, _Opts) ->
     case dmt_api:checkout_object(Reference, ObjectReference, Context) of
-        Object = #'VersionedObject'{} ->
+        {ok, Object} ->
             {ok, Object};
         {error, object_not_found} ->
             woody_error:raise(business, #'ObjectNotFound'{});
