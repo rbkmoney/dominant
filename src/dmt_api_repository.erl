@@ -170,7 +170,7 @@ construct_signal_result(Events) ->
 handle_call({commit, Version, Commit}, History) ->
     case dmt_api:apply_commit(Version, Commit, History) of
         {ok, _} = Ok ->
-            {Ok, [Commit]};
+            {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
             {{error, version_not_found}, []};
         {error, Reason} ->
@@ -190,28 +190,44 @@ read_history(#'Machine'{history = Events}) ->
 read_history([], History) ->
     History;
 read_history([#'Event'{id = Id, event_payload = EventData} | Rest], History) ->
-    read_history(Rest, History#{Id => decode_event(EventData)}).
+    {commit, Commit} = decode_event(EventData),
+    read_history(Rest, History#{Id => Commit}).
 
 %%
 
-encode_event(Event) ->
-    {bin, term_to_binary(Event)}.
+encode_event({commit, Commit}) ->
+    {arr, [{str, <<"commit">>}, encode(commit, Commit)]}.
 
-decode_event({bin, EventData}) ->
-    binary_to_term(EventData).
+decode_event({arr, [{str, <<"commit">>}, Commit]}) ->
+    {commit, decode(commit, Commit)}.
+
+%%
 
 encode_call({commit, Version, Commit}) ->
-    {arr, [{str, <<"commit">>}, {i, Version}, {bin, term_to_binary(Commit)}]}.
+    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit)]}.
 
-decode_call({arr, [{str, <<"commit">>}, {i, Version}, {bin, CommitData}]}) ->
-    {commit, Version, binary_to_term(CommitData)}.
+decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
+    {commit, Version, decode(commit, Commit)}.
 
 encode_call_result({commit, _, _}, {ok, Snapshot}) ->
-    {arr, [{str, <<"ok">> } , {bin, term_to_binary(Snapshot)}]};
+    {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};
 encode_call_result({commit, _, _}, {error, Reason}) ->
-    {arr, [{str, <<"err">>} , {str, atom_to_binary(Reason, utf8)}]}.
+    {arr, [{str, <<"err">>}, {str, atom_to_binary(Reason, utf8)}]}.
 
-decode_call_result({commit, _, _}, {arr, [{str, <<"ok">> }, {bin, SnapshotData}]}) ->
-    {ok, binary_to_term(SnapshotData)};
+decode_call_result({commit, _, _}, {arr, [{str, <<"ok">> }, Snapshot]}) ->
+    {ok, decode(snapshot, Snapshot)};
 decode_call_result({commit, _, _}, {arr, [{str, <<"err">>}, {str, Reason}]}) ->
     {error, binary_to_existing_atom(Reason, utf8)}.
+
+%%
+
+decode(T, V) ->
+    dmt_api_thrift_msgpack_protocol:decode(get_type_info(T), V).
+
+encode(T, V) ->
+    dmt_api_thrift_msgpack_protocol:encode(get_type_info(T), V).
+
+get_type_info(commit) ->
+    {struct, struct, {dmsl_domain_config_thrift, 'Commit'}};
+get_type_info(snapshot) ->
+    {struct, struct, {dmsl_domain_config_thrift, 'Snapshot'}}.
