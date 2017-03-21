@@ -1,6 +1,7 @@
 -module(dmt_api_thrift_msgpack_protocol).
 
--behaviour(thrift_protocol).
+%%% Thrift library uses legacy behaviour definition that makes dialyzer angry.
+%%% -behaviour(thrift_protocol).
 
 -include_lib("thrift/include/thrift_constants.hrl").
 -include_lib("thrift/include/thrift_protocol.hrl").
@@ -46,7 +47,7 @@ close_transport(This = #msgpack_protocol{production = Production}) ->
 encode(Type, Data) ->
     {ok, Proto0} = new(),
     {Proto1, ok} = thrift_protocol:write(Proto0, {Type, Data}),
-    {_Proto, Value} = thrift_protocol:flush_transport(Proto1),
+    {_Proto, Value} = thrift_protocol:close_transport(Proto1),
     Value.
 
 -spec decode(thrift_type(), msgpack_value()) ->
