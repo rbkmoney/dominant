@@ -3,6 +3,7 @@
 
 -export([call/4]).
 -export([get_history/4]).
+-export([start/3]).
 
 %%
 
@@ -39,8 +40,6 @@ get_history(NS, ID, HistoryRange, Context) ->
         {error, _} = Error ->
             Error
     end.
-
-%%
 
 -spec start(ns(), id(), context()) ->
     ok | no_return().

@@ -48,7 +48,8 @@ get_history_by_range(HistoryRange, Context) ->
         {ok, History} ->
             read_history(History);
         {error, #'MachineNotFound'{}} ->
-            #{};
+            ok = dmt_api_automaton_client:start(?NS, ?ID, Context),
+            get_history_by_range(HistoryRange, Context);
         {error, #'EventNotFound'{}} ->
             {error, version_not_found}
     end.
@@ -79,8 +80,7 @@ call(Call, Context) ->
 handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], _Context, _Opts) ->
     Call = decode_call(Payload),
     {Result, Events} = handle_call(Call, read_history(Machine)),
-    Response = encode_call_result(Call, Result),
-    {ok, construct_call_result(Response, [encode_event(E) || E <- Events])};
+    {ok, construct_call_result(Call, Result, Events)};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], Context, _Opts) ->
     LegacyHistory = dmt_api_repository_v1:get_history(undefined, Context),
     {ok, construct_signal_result(get_events_from_history(LegacyHistory))};
@@ -90,18 +90,21 @@ handle_function('ProcessSignal', [#'SignalArgs'{signal = {repair, #'RepairSignal
 get_events_from_history(History) ->
     [{commit, Commit} || {_Version, Commit} <- lists:keysort(1, maps:to_list(History))].
 
-construct_call_result(Response, Events) ->
+construct_call_result(Call, Response, Events) ->
     #'CallResult'{
-        response = Response,
-        change = #'MachineStateChange'{aux_state = ?NIL, events = Events},
+        response = encode_call_result(Call, Response),
+        change = #'MachineStateChange'{aux_state = ?NIL, events = encode_events(Events)},
         action = #'ComplexAction'{}
     }.
 
 construct_signal_result(Events) ->
     #'SignalResult'{
-        change = #'MachineStateChange'{aux_state = ?NIL, events = Events},
+        change = #'MachineStateChange'{aux_state = ?NIL, events = encode_events(Events)},
         action = #'ComplexAction'{}
     }.
+
+encode_events(Events) ->
+    [encode_event(E) || E <- Events].
 
 %%
 

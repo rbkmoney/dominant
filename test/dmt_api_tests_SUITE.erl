@@ -5,6 +5,8 @@
 -export([groups/0]).
 -export([init_per_suite/1]).
 -export([end_per_suite/1]).
+-export([init_per_group/2]).
+-export([end_per_group/2]).
 
 -export([insert/1]).
 -export([update/1]).
@@ -24,12 +26,15 @@
 -spec all() -> [{group, group_name()}].
 all() ->
     [
-        {group, basic_lifecycle}
+        {group, basic_lifecycle_v1},
+        {group, basic_lifecycle_v2}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
+        {basic_lifecycle_v1, [sequence], [{group, basic_lifecycle}]},
+        {basic_lifecycle_v2, [sequence], [{group, basic_lifecycle}]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
             insert,
             update,
@@ -41,24 +46,42 @@ groups() ->
 %% starting/stopping
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps =
-        genlib_app:start_application_with(lager, [
-            {async_threshold, 1},
-            {async_threshold_window, 0},
-            {error_logger_hwm, 600},
-            {suppress_application_start_stop, true},
-            {handlers, [
-                {lager_common_test_backend, [debug, false]}
-            ]}
-        ]) ++
-        genlib_app:start_application_with(dmt_api, [
-            {automaton_service_url, "http://machinegun:8022/v1/automaton"}
-        ]),
-    [{suite_apps, Apps}, {counter, 1} | C].
+    Apps = genlib_app:start_application_with(lager, [
+        {async_threshold, 1},
+        {async_threshold_window, 0},
+        {error_logger_hwm, 600},
+        {suppress_application_start_stop, true},
+        {handlers, [
+            {lager_common_test_backend, [info, false]}
+        ]}
+    ]),
+    [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> term().
 end_per_suite(C) ->
-    [application:stop(App) || App <- lists:reverse(?config(suite_apps, C))].
+    genlib_app:stop_unload_applications(?config(suite_apps, C)).
+
+-spec init_per_group(group_name(), config()) -> config().
+init_per_group(basic_lifecycle_v1, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v1)} | C];
+init_per_group(basic_lifecycle_v2, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v2)} | C];
+init_per_group(_, C) ->
+    C.
+
+start_with_repository(Repository) ->
+    genlib_app:start_application_with(dmt_api, [
+        {repository, Repository},
+        {automaton_service_url, "http://machinegun:8022/v1/automaton"}
+    ]).
+
+-spec end_per_group(group_name(), config()) -> term().
+end_per_group(basic_lifecycle_v1, C) ->
+    genlib_app:stop_unload_applications(?config(group_apps, C));
+end_per_group(basic_lifecycle_v2, C) ->
+    genlib_app:stop_unload_applications(?config(group_apps, C));
+end_per_group(_, _C) ->
+    ok.
 
 %%
 %% tests
