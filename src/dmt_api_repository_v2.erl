@@ -164,11 +164,11 @@ decode_call_result({commit, _, _}, {arr, [{str, <<"err">>}, {str, Reason}]}) ->
 
 %%
 
-decode(T, V) ->
-    dmt_api_thrift_msgpack_protocol:decode(get_type_info(T), V).
+decode(T, {bin, V}) ->
+    dmt_api_thrift_utils:decode(binary, get_type_info(T), V).
 
 encode(T, V) ->
-    dmt_api_thrift_msgpack_protocol:encode(get_type_info(T), V).
+    {bin, dmt_api_thrift_utils:encode(binary, get_type_info(T), V)}.
 
 get_type_info(commit) ->
     {struct, struct, {dmsl_domain_config_thrift, 'Commit'}};
