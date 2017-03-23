@@ -11,8 +11,6 @@
     new/1,
     read/2,
     write/2,
-    encode/2,
-    decode/2,
     flush_transport/1,
     close_transport/1
 ]).
@@ -29,34 +27,11 @@ new(Production) ->
     State = #msgpack_protocol{production = Production},
     thrift_protocol:new(?MODULE, State).
 
-flush_transport(This = #msgpack_protocol{production = Production}) ->
-    {This, Production}.
+flush_transport(This) ->
+    {This, ok}.
 
 close_transport(This = #msgpack_protocol{production = Production}) ->
-    {This, Production}.
-
-%%
-
--type thrift_type()   :: term().
--type thrift_value()  :: term().
--type msgpack_value() :: dmsl_msgpack_thrift:'Value'().
-
--spec encode(thrift_type(), thrift_value()) ->
-    msgpack_value().
-
-encode(Type, Data) ->
-    {ok, Proto0} = new(),
-    {Proto1, ok} = thrift_protocol:write(Proto0, {Type, Data}),
-    {_Proto, Value} = thrift_protocol:close_transport(Proto1),
-    Value.
-
--spec decode(thrift_type(), msgpack_value()) ->
-    thrift_value().
-
-decode(Type, Value) ->
-    {ok, Proto0} = new(Value),
-    {_Proto, {ok, Data}} = thrift_protocol:read(Proto0, Type),
-    Data.
+    {This, {ok, Production}}.
 
 %%%
 %%% instance methods
