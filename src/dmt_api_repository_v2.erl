@@ -84,6 +84,10 @@ handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], 
     {Result, Events} = handle_call(Call, read_history(Machine)),
     {ok, construct_call_result(Call, Result, Events)};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], Context, _Opts) ->
+    %%% TODO It's generally prettier to make up a _migrating_ repository which is the special repository
+    %%%      module designed to facilitate migrations between some preconfigured 'old' repository backend
+    %%%      and some 'new' one. The migration process could be triggered by the very first mutating
+    %%%      operation (e.g. commit) going into this backend for example.
     LegacyHistory = dmt_api_repository_v1:get_history(undefined, Context),
     {ok, construct_signal_result(get_events_from_history(LegacyHistory))}.
 
