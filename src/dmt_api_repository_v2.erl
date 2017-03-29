@@ -1,4 +1,6 @@
 -module(dmt_api_repository_v2).
+-behaviour(dmt_api_repository).
+
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
