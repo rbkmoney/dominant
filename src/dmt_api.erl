@@ -139,7 +139,7 @@ init([]) ->
     Children = [API],
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
--spec get_handler_spec(Which) -> {Path, {woody:service(), module()}} when
+-spec get_handler_spec(Which) -> {Path, {woody:service(), woody:handler(module())}} when
     Which   :: repository | repository_client | state_processor,
     Path    :: iodata().
 

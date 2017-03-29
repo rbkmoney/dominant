@@ -9,8 +9,8 @@
 
 -type ns()            :: dmsl_base_thrift:'Namespace'().
 -type id()            :: dmsl_base_thrift:'ID'().
--type call_args()     :: dmsl_state_processing_thrift:'CallArgs'().
--type call_result()   :: dmsl_state_processing_thrift:'CallResult'().
+-type args()          :: dmsl_state_processing_thrift:'Args'().
+-type response()      :: dmsl_state_processing_thrift:'CallResponse'().
 -type descriptor()    :: dmsl_state_processing_thrift:'MachineDescriptor'().
 -type history_range() :: dmsl_state_processing_thrift:'HistoryRange'().
 -type history()       :: dmsl_state_processing_thrift:'History'().
@@ -18,8 +18,9 @@
 
 %%
 
--spec call(ns(), id(), call_args(), context()) ->
-    call_result() | no_return().
+-spec call(ns(), id(), args(), context()) ->
+    response() |
+    no_return().
 call(NS, ID, Args, Context) ->
     Descriptor = construct_descriptor(NS, ID, #'HistoryRange'{}),
     case issue_rpc('Call', [Descriptor, Args], Context) of
@@ -31,7 +32,12 @@ call(NS, ID, Args, Context) ->
     end.
 
 -spec get_history(ns(), id(), history_range(), context()) ->
-    {ok, history()} | {error, dmsl_state_processing_thrift:'EventNotFound'()} | no_return().
+    {ok, history()} |
+    {error,
+        dmsl_state_processing_thrift:'EventNotFound'() |
+        dmsl_state_processing_thrift:'MachineNotFound'()
+    } |
+    no_return().
 get_history(NS, ID, HistoryRange, Context) ->
     Descriptor = construct_descriptor(NS, ID, HistoryRange),
     case issue_rpc('GetMachine', [Descriptor], Context) of
