@@ -108,13 +108,9 @@ write(This, list_end) ->
     do_write(This, {exit, array});
 
 write(This, #protocol_set_begin{etype = Etype, size = Size}) ->
-    do_write_many(This, [
-        {enter, array},
-        ?str(typeid_to_string(Etype)),
-        ?int(Size)
-    ]);
+    write(This, #protocol_list_begin{etype = Etype, size = Size});
 write(This, set_end) ->
-    do_write(This, {exit, array});
+    write(This, list_end);
 
 write(This, {bool, V}) ->
     do_write(This, ?bool(V));
@@ -242,17 +238,10 @@ read(This0, list_end) ->
     do_read(This0, {exit, array});
 
 read(This0, set_begin) ->
-    {This1, {ok, [Etype, Size]}} = do_read_many(This0, [
-        {enter, array},
-        str,
-        int
-    ]),
-    {This1, #protocol_list_begin{
-        etype = string_to_typeid(Etype),
-        size = Size
-    }};
+    {This1, #protocol_list_begin{etype = Etype, size = Size}} = read(This0, list_begin),
+    {This1, #protocol_set_begin{etype = Etype, size = Size}};
 read(This0, set_end) ->
-    do_read(This0, {exit, array});
+    read(This0, list_end);
 
 read(This0, field_stop) ->
     {This0, ok};
