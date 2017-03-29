@@ -3,10 +3,10 @@
 -behaviour(supervisor).
 
 %% API
--export([checkout/2]).
--export([checkout_object/3]).
--export([pull/2]).
--export([commit/3]).
+-export([checkout/3]).
+-export([checkout_object/4]).
+-export([pull/3]).
+-export([commit/4]).
 -export([apply_commit/3]).
 
 %% behaviours
@@ -19,29 +19,32 @@
 %% API
 
 -type context() :: woody_client:context().
+-type repository() :: module().
 
--spec checkout(dmt:ref(), context()) -> dmt:snapshot() | {error, version_not_found}.
-checkout(Reference, Context) ->
+-spec checkout(dmt:ref(), repository(), context()) ->
+    {ok, dmt:snapshot()} | {error, version_not_found}.
+checkout(Reference, Repository, Context) ->
     try
-        dmt_cache:checkout(Reference)
+        {ok, dmt_cache:checkout(Reference)}
     catch
         version_not_found ->
-            case try_get_snapshot(Reference, Context) of
-                Snapshot = #'Snapshot'{} ->
-                    dmt_cache:cache_snapshot(Snapshot);
+            case try_get_snapshot(Reference, Repository, Context) of
+                {ok, Snapshot} ->
+                    {ok, dmt_cache:cache_snapshot(Snapshot)};
                 {error, version_not_found} ->
                     {error, version_not_found}
             end
     end.
 
--spec try_get_snapshot(dmt:ref(), context()) -> dmt:snapshot() | {error, version_not_found}.
-try_get_snapshot(Reference, Context) ->
-    History = dmt_api_mg:get_history(undefined, reference_to_limit(Reference), Context),
+-spec try_get_snapshot(dmt:ref(), repository(), context()) ->
+    {ok, dmt:snapshot()} | {error, version_not_found}.
+try_get_snapshot(Reference, Repository, Context) ->
+    History = dmt_api_repository:get_history(Repository, reference_to_limit(Reference), Context),
     case {Reference, dmt_history:head(History)} of
         {{head, #'Head'{}}, Snapshot} ->
-            Snapshot;
+            {ok, Snapshot};
         {{version, V}, Snapshot = #'Snapshot'{version = V}} ->
-            Snapshot;
+            {ok, Snapshot};
         {{version, V1}, #'Snapshot'{version = V2}} when V1 > V2 ->
             {error, version_not_found}
     end.
@@ -52,39 +55,38 @@ reference_to_limit({head, #'Head'{}}) ->
 reference_to_limit({version, Version}) ->
     Version.
 
--spec checkout_object(dmt:ref(), dmt:object_ref(), context()) ->
-    dmsl_domain_config_thrift:'VersionedObject'() | {error, version_not_found | object_not_found}.
-checkout_object(Reference, ObjectReference, Context) ->
-    Snapshot = checkout(Reference, Context),
-    case Snapshot of
-        #'Snapshot'{} ->
+-spec checkout_object(dmt:ref(), dmt:object_ref(), repository(), context()) ->
+    {ok, dmsl_domain_config_thrift:'VersionedObject'()} | {error, version_not_found | object_not_found}.
+checkout_object(Reference, ObjectReference, Repository, Context) ->
+    case checkout(Reference, Repository, Context) of
+        {ok, Snapshot} ->
             try_get_object(ObjectReference, Snapshot);
-        {error, _} ->
-            Snapshot
+        {error, _} = Error ->
+            Error
     end.
 
 try_get_object(ObjectReference, #'Snapshot'{version = Version, domain = Domain}) ->
     case dmt_domain:get_object(ObjectReference, Domain) of
         {ok, Object} ->
-            #'VersionedObject'{version = Version, object = Object};
+            {ok, #'VersionedObject'{version = Version, object = Object}};
         error ->
             {error, object_not_found}
     end.
 
--spec pull(dmt:version(), context()) -> dmt:history() | {error, version_not_found}.
-pull(Version, Context) ->
-    dmt_api_mg:get_history(Version, undefined, Context).
+-spec pull(dmt:version(), repository(), context()) ->
+    {ok, dmt:history()} | {error, version_not_found}.
+pull(Version, Repository, Context) ->
+    dmt_api_repository:get_history_since(Repository, Version, Context).
 
--spec commit(dmt:version(), dmt:commit(), context()) ->
-    dmt:version() | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, Context) ->
-    Snapshot = dmt_api_mg:commit(Version, Commit, Context),
-    case Snapshot of
-        #'Snapshot'{version = VersionNext} ->
+-spec commit(dmt:version(), dmt:commit(), repository(), context()) ->
+    {ok, dmt:version()} | {error, version_not_found | operation_conflict}.
+commit(Version, Commit, Repository, Context) ->
+    case dmt_api_repository:commit(Repository, Version, Commit, Context) of
+        {ok, Snapshot = #'Snapshot'{version = VersionNext}} ->
             _ = dmt_cache:cache_snapshot(Snapshot),
-            VersionNext;
-        {error, _} ->
-            Snapshot
+            {ok, VersionNext};
+        {error, _} = Error ->
+            Error
     end.
 
 -spec apply_commit(dmt:version(), dmt:commit(), dmt:history()) ->
@@ -124,11 +126,10 @@ init([]) ->
     API = woody_server:child_spec(
         ?MODULE,
         #{
-            ip => IP,
-            port => genlib_app:env(?MODULE, port, 8022),
-            net_opts => #{},
+            ip            => IP,
+            port          => genlib_app:env(?MODULE, port, 8022),
             event_handler => woody_event_handler_default,
-            handlers => [
+            handlers      => [
                 get_handler_spec(repository),
                 get_handler_spec(repository_client),
                 get_handler_spec(state_processor)
@@ -138,22 +139,25 @@ init([]) ->
     Children = [API],
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
--spec get_handler_spec(Which) -> {Path, {woody:service(), module()}} when
+-spec get_handler_spec(Which) -> {Path, {woody:service(), woody:handler(module())}} when
     Which   :: repository | repository_client | state_processor,
     Path    :: iodata().
 
 get_handler_spec(repository) ->
     {"/v1/domain/repository", {
         {dmsl_domain_config_thrift, 'Repository'},
-        dmt_api_repository_handler
+        {dmt_api_repository_handler, get_repository_mod()}
     }};
 get_handler_spec(repository_client) ->
     {"/v1/domain/repository_client", {
         {dmsl_domain_config_thrift, 'RepositoryClient'},
-        dmt_api_repository_client_handler
+        {dmt_api_repository_client_handler, get_repository_mod()}
     }};
 get_handler_spec(state_processor) ->
     {"/v1/stateproc", {
         {dmsl_state_processing_thrift, 'Processor'},
-        dmt_api_state_processor
+        get_repository_mod()
     }}.
+
+get_repository_mod() ->
+    genlib_app:env(?MODULE, repository, dmt_api_repository_v2).

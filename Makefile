@@ -19,7 +19,7 @@ BASE_IMAGE_TAG := 13454a94990acb72f753623ec13599a9f6f4f852
 ## Variables required for utils_container.mk
 
 # Build image tag to be used
-BUILD_IMAGE_TAG := 7f6c3f231c0cffbf11e67f5a5e38366bef1c798f
+BUILD_IMAGE_TAG := 3750c129119b83ea399dc4aa0ed923fb0e3bf0f0
 
 BASE_IMAGE := "$(ORG_NAME)/build:latest"
 RELNAME := dominant
@@ -54,7 +54,7 @@ compile: submodules rebar-update
 xref: submodules
 	$(REBAR) xref
 
-lint: compile
+lint:
 	elvis rock
 
 dialyze:
@@ -66,7 +66,7 @@ start: submodules
 devrel: submodules
 	$(REBAR) release
 
-release: distclean
+release: submodules distclean
 	$(REBAR) as prod release
 
 clean:
@@ -74,7 +74,7 @@ clean:
 
 distclean:
 	$(REBAR) clean -a
-	rm -rfv _build _builds _cache _steps _temp
+	rm -rfv _build
 
 # CALL_W_CONTAINER
 test: submodules
