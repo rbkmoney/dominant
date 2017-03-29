@@ -83,9 +83,7 @@ handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], 
     {ok, construct_call_result(Call, Result, Events)};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], Context, _Opts) ->
     LegacyHistory = dmt_api_repository_v1:get_history(undefined, Context),
-    {ok, construct_signal_result(get_events_from_history(LegacyHistory))};
-handle_function('ProcessSignal', [#'SignalArgs'{signal = {repair, #'RepairSignal'{}}}], _Context, _Opts) ->
-    {ok, construct_signal_result([])}.
+    {ok, construct_signal_result(get_events_from_history(LegacyHistory))}.
 
 get_events_from_history(History) ->
     [{commit, Commit} || {_Version, Commit} <- lists:keysort(1, maps:to_list(History))].

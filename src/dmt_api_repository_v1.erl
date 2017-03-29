@@ -83,8 +83,6 @@ handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], 
     Response = encode_call_result(Result),
     {ok, construct_call_result(Response, [encode_event(E) || E <- Events])};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], _Context, _Opts) ->
-    {ok, construct_signal_result([])};
-handle_function('ProcessSignal', [#'SignalArgs'{signal = {repair, #'RepairSignal'{}}}], _Context, _Opts) ->
     {ok, construct_signal_result([])}.
 
 construct_call_result(Response, Events) ->
