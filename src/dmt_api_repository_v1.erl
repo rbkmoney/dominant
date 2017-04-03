@@ -40,7 +40,7 @@ get_history_since(Version, Context) ->
 
 get_event_id(ID) when is_integer(ID) andalso ID > 0 ->
     ID;
-get_event_id(_) ->
+get_event_id(0) ->
     undefined.
 
 %%
