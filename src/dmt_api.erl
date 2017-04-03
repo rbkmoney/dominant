@@ -128,6 +128,7 @@ init([]) ->
         #{
             ip            => IP,
             port          => genlib_app:env(?MODULE, port, 8022),
+            net_opts      => genlib_app:env(?MODULE, net_opts, #{}),
             event_handler => woody_event_handler_default,
             handlers      => [
                 get_handler_spec(repository),
