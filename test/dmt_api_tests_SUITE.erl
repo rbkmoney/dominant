@@ -8,6 +8,7 @@
 -export([init_per_group/2]).
 -export([end_per_group/2]).
 
+-export([pull_commit/1]).
 -export([insert/1]).
 -export([update/1]).
 -export([delete/1]).
@@ -33,8 +34,14 @@ all() ->
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
-        {basic_lifecycle_v1, [sequence], [{group, basic_lifecycle}]},
-        {basic_lifecycle_v2, [sequence], [{group, basic_lifecycle}]},
+        {basic_lifecycle_v1, [sequence], [
+            pull_commit,
+            {group, basic_lifecycle}
+        ]},
+        {basic_lifecycle_v2, [sequence], [
+            pull_commit,
+            {group, basic_lifecycle}
+        ]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
             insert,
             update,
@@ -123,6 +130,16 @@ delete(_C) ->
     Version2 = dmt_client_api:commit(Version1, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}),
     #'VersionedObject'{object = Object} = dmt_client_api:checkout_object({version, Version1}, Ref),
     #'ObjectNotFound'{} = (catch dmt_client_api:checkout_object({version, Version2}, Ref)).
+
+-spec pull_commit(term()) -> term().
+pull_commit(_C) ->
+    ID = next_id(),
+    History1 = #{} = dmt_client_api:pull(0),
+    Version1 = lists:max([0 | maps:keys(History1)]),
+    Object = fixture_domain_object(ID, <<"PullFixture">>),
+    Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
+    Version2 = dmt_client_api:commit(Version1, Commit),
+    #{Version2 := Commit} = dmt_client_api:pull(Version1).
 
 next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
