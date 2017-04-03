@@ -30,12 +30,18 @@ get_history(Limit, Context) ->
 -spec get_history_since(dmt:version(), context()) ->
     {ok, dmt:history()} | {error, version_not_found}.
 get_history_since(Version, Context) ->
-    case get_history_by_range(#'HistoryRange'{'after' = Version, 'limit' = undefined}, Context) of
+    After = get_event_id(Version),
+    case get_history_by_range(#'HistoryRange'{'after' = After, 'limit' = undefined}, Context) of
         History when is_map(History) ->
             {ok, History};
         Error ->
             Error
     end.
+
+get_event_id(ID) when is_integer(ID) andalso ID > 0 ->
+    ID;
+get_event_id(_) ->
+    undefined.
 
 %%
 
