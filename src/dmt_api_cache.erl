@@ -139,24 +139,24 @@ get_snapshot(Version) ->
     end.
 
 closest_snapshot(Version) ->
-    case ets:last(?TABLE) of
-        '$end_of_table' ->
-            #'Snapshot'{version = 0, domain = dmt_domain:new()};
-        LastVersion ->
-            closest_snapshot(Version, LastVersion, ets:prev(?TABLE, LastVersion))
-    end.
-
-closest_snapshot(_Version, Closest, '$end_of_table') ->
-    {ok, Snapshot} = get_snapshot(Closest),
-    Snapshot;
-closest_snapshot(Version, Closest, Key) ->
-    case abs(Version - Key) < abs(Version - Closest) of
-        true ->
-            closest_snapshot(Version, Key, ets:prev(?TABLE, Key));
-        false ->
-            {ok, Snapshot} = get_snapshot(Closest),
-            Snapshot
-    end.
+    Prev = ets:prev(?TABLE, Version),
+    Next = ets:next(?TABLE, Version),
+    {ok, Snapshot} = case {Prev, Next} of
+        {'$end_of_table', '$end_of_table'} ->
+            {ok, #'Snapshot'{version = 0, domain = dmt_domain:new()}};
+        {'$end_of_table', Next} ->
+            get_snapshot(Next);
+        {Prev, '$end_of_table'} ->
+            get_snapshot(Prev);
+        _ ->
+            case Next - Version < Version - Prev of
+                true ->
+                    get_snapshot(Next);
+                false ->
+                    get_snapshot(Prev)
+            end
+    end,
+    Snapshot.
 
 cleanup(#state{max_elements = MaxElements, max_memory = MaxMemory} = State) ->
     {Elements, Memory} = get_cache_size(State#state.word_size),
