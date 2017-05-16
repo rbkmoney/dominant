@@ -55,26 +55,49 @@ get_latest() ->
         '$end_of_table' ->
             {error, version_not_found};
         Version ->
-            get_snapshot(Version)
+            case get_snapshot(Version) of
+                {ok, _} = Result ->
+                    Result;
+                {error, version_not_found} ->
+                    gen_server:call(?SERVER, get_latest)
+            end
     end.
 
 -spec get_closest(dmt_api_repository:version()) -> dmt_api_repository:snapshot().
 
 get_closest(Version) ->
+    Prev = ets:prev(?TABLE, Version),
+    Next = ets:next(?TABLE, Version),
+    get_closest(Prev, Next, Version).
+
+get_closest('$end_of_table', '$end_of_table', _Version) ->
+    #'Snapshot'{version = 0, domain = dmt_domain:new()};
+
+get_closest('$end_of_table', Next, Version) ->
+    check_closest_snapshot(get_snapshot(Next), Version);
+
+get_closest(Prev, '$end_of_table', Version) ->
+    check_closest_snapshot(get_snapshot(Prev), Version);
+
+get_closest(Prev, Next, Version) ->
+    case Next - Version < Version - Prev of
+        true ->
+            check_closest_snapshot(get_snapshot(Next), Version);
+        false ->
+            check_closest_snapshot(get_snapshot(Prev), Version)
+    end.
+
+check_closest_snapshot({ok, Snapshot}, _Version) ->
+    Snapshot;
+
+check_closest_snapshot({error, version_not_found}, Version) ->
     gen_server:call(?SERVER, {get_closest, Version}).
+
 %%
 
--record(state, {
-    word_size,
-    max_elements,
-    max_memory
-}).
+-record(state, {}).
 
--type state() :: #state{
-    word_size :: pos_integer(),
-    max_elements :: pos_integer(),
-    max_memory :: pos_integer()
-}.
+-type state() :: #state{}.
 
 -spec init(_) -> {ok, state()}.
 
@@ -87,20 +110,15 @@ init(_) ->
         {keypos, #'Snapshot'.version}
     ],
     ?TABLE = ets:new(?TABLE, EtsOpts),
-    #{
-        elements := MaxElements,
-        memory := MaxMemory
-    } = genlib_app:env(dmt_api, max_cache_size),
-    {ok, #state{
-        word_size = erlang:system_info(wordsize),
-        max_elements = MaxElements,
-        max_memory = MaxMemory
-    }}.
+    {ok, #state{}}.
 
 -spec handle_call(term(), {pid(), term()}, state()) -> {reply, term(), state()}.
 
+handle_call(get_latest, _From, State) ->
+    {reply, get_latest(), State};
+
 handle_call({get_closest, Version}, _From, State) ->
-    {reply, closest_snapshot(Version), State};
+    {reply, get_closest(Version), State};
 
 handle_call(_Msg, _From, State) ->
     {noreply, State}.
@@ -109,7 +127,7 @@ handle_call(_Msg, _From, State) ->
 
 handle_cast({put, Snapshot}, State) ->
     true = ets:insert(?TABLE, Snapshot),
-    ok = cleanup(State),
+    ok = cleanup(),
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -138,46 +156,30 @@ get_snapshot(Version) ->
             {error, version_not_found}
     end.
 
-closest_snapshot(Version) ->
-    Prev = ets:prev(?TABLE, Version),
-    Next = ets:next(?TABLE, Version),
-    {ok, Snapshot} = case {Prev, Next} of
-        {'$end_of_table', '$end_of_table'} ->
-            {ok, #'Snapshot'{version = 0, domain = dmt_domain:new()}};
-        {'$end_of_table', Next} ->
-            get_snapshot(Next);
-        {Prev, '$end_of_table'} ->
-            get_snapshot(Prev);
-        _ ->
-            case Next - Version < Version - Prev of
-                true ->
-                    get_snapshot(Next);
-                false ->
-                    get_snapshot(Prev)
-            end
-    end,
-    Snapshot.
-
-cleanup(#state{max_elements = MaxElements, max_memory = MaxMemory} = State) ->
-    {Elements, Memory} = get_cache_size(State#state.word_size),
+cleanup() ->
+    {Elements, Memory} = get_cache_size(),
+    CacheLimits = genlib_app:env(dmt_api, max_cache_size),
+    MaxElements = genlib_map:get(elements, CacheLimits, 100),
+    MaxMemory = genlib_map:get(memory, CacheLimits, 100*1024*1024), % 100Mb by default
     case Elements > MaxElements orelse Memory > MaxMemory of
         true ->
-            ok = remove_erleast(),
-            cleanup(State);
+            ok = remove_erliest(),
+            cleanup();
         false ->
             ok
     end.
 
-get_cache_size(Wordsize) ->
+get_cache_size() ->
+    WordSize = erlang:system_info(wordsize),
     Info = ets:info(?TABLE),
-    {proplists:get_value(size, Info), Wordsize * proplists:get_value(memory, Info)}.
+    {proplists:get_value(size, Info), WordSize * proplists:get_value(memory, Info)}.
 
-remove_erleast() ->
+remove_erliest() ->
     % Naive implementation, but probably good enought
-    remove_erleast(ets:first(?TABLE)).
+    remove_erliest(ets:first(?TABLE)).
 
-remove_erleast('$end_of_table') ->
+remove_erliest('$end_of_table') ->
     ok;
-remove_erleast(Key) ->
+remove_erliest(Key) ->
     true = ets:delete(?TABLE, Key),
     ok.

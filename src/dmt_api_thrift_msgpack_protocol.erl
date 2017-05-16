@@ -19,7 +19,14 @@
     production :: production()
 }).
 
--type production() :: term(). % FIXME
+-type production() ::
+    [] |
+    value() |
+    {array, [production()], value()} |
+    {map, none | value(), [{value(), value()}] | #{value() => value()}, value()}.
+
+-type value() :: dmsl_msgpack_thrift:'Value'().
+
 -type state() :: #msgpack_protocol{}.
 
 -include_lib("thrift/include/thrift_protocol_behaviour.hrl").
