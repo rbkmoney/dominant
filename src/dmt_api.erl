@@ -22,7 +22,7 @@
 -type context() :: woody_client:context().
 -type repository() :: module().
 
--spec checkout(dmt:ref(), repository(), context()) ->
+-spec checkout(ref(), repository(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
 
 checkout({head, #'Head'{}}, Repository, Context) ->

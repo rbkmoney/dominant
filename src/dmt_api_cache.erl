@@ -37,18 +37,18 @@ start_link() ->
 child_spec() ->
     #{id => ?MODULE, start => {?MODULE, start_link, []}, restart => permanent}.
 
--spec put(dmt_api_client:snapshot()) -> dmt_api_client:snapshot().
+-spec put(dmt_api_repository:snapshot()) -> dmt_api_repository:snapshot().
 
 put(Snapshot) ->
     ok = gen_server:cast(?SERVER, {put, Snapshot}),
     Snapshot.
 
--spec get(dmt_api_client:version()) -> {ok, dmt_api_client:snapshot()} | {error, version_not_found}.
+-spec get(dmt_api_repository:version()) -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
 
 get(Version) ->
     get_snapshot(Version).
 
--spec get_latest() -> {ok, dmt_api_client:snapshot()} | {error, version_not_found}.
+-spec get_latest() -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
 
 get_latest() ->
     case ets:last(?TABLE) of
@@ -58,7 +58,7 @@ get_latest() ->
             get_snapshot(Version)
     end.
 
--spec get_closest(dmt_api_client:version()) -> dmt_api_client:snapshot().
+-spec get_closest(dmt_api_repository:version()) -> dmt_api_repository:snapshot().
 
 get_closest(Version) ->
     gen_server:call(?SERVER, {get_closest, Version}).
