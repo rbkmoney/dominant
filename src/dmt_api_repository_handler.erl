@@ -11,11 +11,11 @@
 
 -spec handle_function
     ('Commit', woody:args(), context(), woody:options()) ->
-        {ok, dmt:version()} | no_return();
+        {ok, dmt_api_repository:version()} | no_return();
     ('Checkout', woody:args(), context(), woody:options()) ->
-        {ok, dmt:snapshot()} | no_return();
+        {ok, dmt_api_repository:snapshot()} | no_return();
     ('Pull', woody:args(), context(), woody:options()) ->
-        {ok, dmt:history()} | no_return().
+        {ok, dmt_api_repository:history()} | no_return().
 handle_function('Commit', [Version, Commit], Context, Repository) ->
     case dmt_api:commit(Version, Commit, Repository, Context) of
         {ok, VersionNext} ->

@@ -61,6 +61,12 @@ init_per_suite(C) ->
         {handlers, [
             {lager_common_test_backend, [info, false]}
         ]}
+    ]) ++ genlib_app:start_application_with(dmt_client, [
+        {cache_update_interval, 5000}, % milliseconds
+        {service_urls, #{
+            'Repository' => <<"dominant:8022/v1/domain/repository">>,
+            'RepositoryClient' => <<"dominant:8022/v1/domain/repository_client">>
+        }}
     ]),
     [{suite_apps, Apps} | C].
 

@@ -15,13 +15,21 @@
     close_transport/1
 ]).
 
--record(msgpack_protocol, {production}).
+-record(msgpack_protocol, {
+    production :: production()
+}).
+
+-type production() :: term(). % FIXME
 -type state() :: #msgpack_protocol{}.
 
 -include_lib("thrift/include/thrift_protocol_behaviour.hrl").
 
+-spec new() -> term(). % FIXME
+
 new() ->
     new([]).
+
+-spec new(production()) -> term(). % FIXME
 
 new(Production) ->
     State = #msgpack_protocol{production = Production},

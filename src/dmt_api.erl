@@ -17,46 +17,56 @@
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 %% API
-
+-type ref() :: dmsl_domain_config_thrift:'Reference'().
+-type object_ref() :: dmsl_domain_thrift:'Reference'().
 -type context() :: woody_client:context().
 -type repository() :: module().
 
 -spec checkout(dmt:ref(), repository(), context()) ->
-    {ok, dmt:snapshot()} | {error, version_not_found}.
-checkout(Reference, Repository, Context) ->
-    try
-        {ok, dmt_cache:checkout(Reference)}
-    catch
-        version_not_found ->
-            case try_get_snapshot(Reference, Repository, Context) of
+    {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
+
+checkout({head, #'Head'{}}, Repository, Context) ->
+    try_get_snapshot({head, #'Head'{}}, Repository, Context);
+checkout({version, Version}, Repository, Context) ->
+    case dmt_api_cache:get(Version) of
+        {ok, Snapshot} ->
+            {ok, Snapshot};
+        {error, version_not_found} ->
+            case try_get_snapshot({version, Version}, Repository, Context) of
                 {ok, Snapshot} ->
-                    {ok, dmt_cache:cache_snapshot(Snapshot)};
+                    {ok, dmt_api_cache:put(Snapshot)};
                 {error, version_not_found} ->
                     {error, version_not_found}
             end
     end.
 
--spec try_get_snapshot(dmt:ref(), repository(), context()) ->
-    {ok, dmt:snapshot()} | {error, version_not_found}.
-try_get_snapshot(Reference, Repository, Context) ->
-    History = dmt_api_repository:get_history(Repository, reference_to_limit(Reference), Context),
-    case {Reference, dmt_history:head(History)} of
-        {{head, #'Head'{}}, Snapshot} ->
-            {ok, Snapshot};
-        {{version, V}, Snapshot = #'Snapshot'{version = V}} ->
-            {ok, Snapshot};
-        {{version, V1}, #'Snapshot'{version = V2}} when V1 > V2 ->
+-spec try_get_snapshot(ref(), repository(), context()) ->
+    {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
+
+try_get_snapshot({head, #'Head'{}}, Repository, Context) ->
+    ClosestSnapshot = case dmt_api_cache:get_latest() of
+        {ok, Snapshot} ->
+            Snapshot;
+        {error, version_not_found} ->
+            #'Snapshot'{version = 0, domain = dmt_domain:new()}
+    end,
+    {ok, History} = dmt_api_repository:get_history(Repository, ClosestSnapshot#'Snapshot'.version, undefined, Context),
+    {ok, dmt_history:head(History, ClosestSnapshot)};
+
+try_get_snapshot({version, Version}, Repository, Context) ->
+    ClosestSnapshot = dmt_api_cache:get_closest(Version),
+    From = min(Version, ClosestSnapshot#'Snapshot'.version),
+    Limit = abs(Version - ClosestSnapshot#'Snapshot'.version),
+    case dmt_api_repository:get_history(Repository, From, Limit, Context) of
+        {ok, History} when map_size(History) =:= Limit ->
+            {ok, dmt_history:travel(Version, History, ClosestSnapshot)};
+        {error, version_not_found} ->
             {error, version_not_found}
     end.
 
--spec reference_to_limit(dmt:ref()) -> pos_integer() | undefined.
-reference_to_limit({head, #'Head'{}}) ->
-    undefined;
-reference_to_limit({version, Version}) ->
-    Version.
-
--spec checkout_object(dmt:ref(), dmt:object_ref(), repository(), context()) ->
+-spec checkout_object(ref(), object_ref(), repository(), context()) ->
     {ok, dmsl_domain_config_thrift:'VersionedObject'()} | {error, version_not_found | object_not_found}.
+
 checkout_object(Reference, ObjectReference, Repository, Context) ->
     case checkout(Reference, Repository, Context) of
         {ok, Snapshot} ->
@@ -73,24 +83,27 @@ try_get_object(ObjectReference, #'Snapshot'{version = Version, domain = Domain})
             {error, object_not_found}
     end.
 
--spec pull(dmt:version(), repository(), context()) ->
-    {ok, dmt:history()} | {error, version_not_found}.
-pull(Version, Repository, Context) ->
-    dmt_api_repository:get_history_since(Repository, Version, Context).
+-spec pull(dmt_api_repository:version(), repository(), context()) ->
+    {ok, dmt_api_repository:history()} | {error, version_not_found}.
 
--spec commit(dmt:version(), dmt:commit(), repository(), context()) ->
-    {ok, dmt:version()} | {error, version_not_found | operation_conflict}.
+pull(Version, Repository, Context) ->
+    dmt_api_repository:get_history(Repository, Version, undefined, Context).
+
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), repository(), context()) ->
+    {ok, dmt_api_repository:version()} | {error, version_not_found | operation_conflict}.
+
 commit(Version, Commit, Repository, Context) ->
     case dmt_api_repository:commit(Repository, Version, Commit, Context) of
         {ok, Snapshot = #'Snapshot'{version = VersionNext}} ->
-            _ = dmt_cache:cache_snapshot(Snapshot),
+            _ = dmt_api_cache:put(Snapshot),
             {ok, VersionNext};
         {error, _} = Error ->
             Error
     end.
 
--spec apply_commit(dmt:version(), dmt:commit(), dmt:history()) ->
-    {ok, dmt:snapshot()} | {error, term()}.
+-spec apply_commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:history()) ->
+    {ok, dmt_api_repository:snapshot()} | {error, term()}.
+
 apply_commit(VersionWas, #'Commit'{ops = Ops}, History) ->
     SnapshotWas = dmt_history:head(History),
     case SnapshotWas of
@@ -121,7 +134,9 @@ stop(_State) ->
 
 %%
 
-init([]) ->
+-spec init(any()) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
+
+init(_) ->
     {ok, IP} = inet:parse_address(genlib_app:env(?MODULE, ip, "::")),
     API = woody_server:child_spec(
         ?MODULE,
@@ -137,7 +152,8 @@ init([]) ->
             ]
         }
     ),
-    Children = [API],
+    Cache = dmt_api_cache:child_spec(),
+    Children = [Cache, API],
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
 -spec get_handler_spec(Which) -> {Path, {woody:service(), woody:handler(module())}} when
