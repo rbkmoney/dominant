@@ -64,9 +64,17 @@ get_closest(Version) ->
     gen_server:call(?SERVER, {get_closest, Version}).
 %%
 
--record(state, {}).
+-record(state, {
+    word_size,
+    max_elements,
+    max_memory
+}).
 
--type state() :: #state{}.
+-type state() :: #state{
+    word_size :: pos_integer(),
+    max_elements :: pos_integer(),
+    max_memory :: pos_integer()
+}.
 
 -spec init(_) -> {ok, state()}.
 
@@ -79,7 +87,15 @@ init(_) ->
         {keypos, #'Snapshot'.version}
     ],
     ?TABLE = ets:new(?TABLE, EtsOpts),
-    {ok, #state{}}.
+    #{
+        elements := MaxElements,
+        memory := MaxMemory
+    } = genlib_app:env(dmt_api, max_cache_size),
+    {ok, #state{
+        word_size = erlang:system_info(wordsize),
+        max_elements = MaxElements,
+        max_memory = MaxMemory
+    }}.
 
 -spec handle_call(term(), {pid(), term()}, state()) -> {reply, term(), state()}.
 
@@ -93,6 +109,7 @@ handle_call(_Msg, _From, State) ->
 
 handle_cast({put, Snapshot}, State) ->
     true = ets:insert(?TABLE, Snapshot),
+    ok = cleanup(State),
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -141,4 +158,26 @@ closest_snapshot(Version, Closest, Key) ->
             Snapshot
     end.
 
+cleanup(#state{max_elements = MaxElements, max_memory = MaxMemory} = State) ->
+    {Elements, Memory} = get_cache_size(State#state.word_size),
+    case Elements > MaxElements orelse Memory > MaxMemory of
+        true ->
+            ok = remove_erleast(),
+            cleanup(State);
+        false ->
+            ok
+    end.
 
+get_cache_size(Wordsize) ->
+    Info = ets:info(?TABLE),
+    {proplists:get_value(size, Info), Wordsize * proplists:get_value(memory, Info)}.
+
+remove_erleast() ->
+    % Naive implementation, but probably good enought
+    remove_erleast(ets:first(?TABLE)).
+
+remove_erleast('$end_of_table') ->
+    ok;
+remove_erleast(Key) ->
+    true = ets:delete(?TABLE, Key),
+    ok.
