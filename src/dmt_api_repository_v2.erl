@@ -2,6 +2,7 @@
 -behaviour(dmt_api_repository).
 
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
+-include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary/v2">>).
@@ -10,7 +11,7 @@
 
 -export([get_history/2]).
 -export([get_history/3]).
--export([commit/3]).
+-export([commit/4]).
 
 %% State processor
 
@@ -64,31 +65,27 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:snapshot(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, Context) ->
-    call({commit, Version, Commit}, Context).
+commit(Version, Commit, Snapshot, Context) ->
+    decode_call_result(dmt_api_automaton_client:call(
+        ?NS,
+        ?ID,
+        #'HistoryRange'{'after' = get_event_id(Snapshot#'Snapshot'.version)},
+        encode_call({commit, Version, Commit, Snapshot}),
+        Context
+    )).
 
 %%
 
 -define(NIL, {nl, #msgpack_Nil{}}).
-
--type commit_call()   :: {commit, dmt_api_repository:version(), dmt_api_repository:commit()}.
--type commit_result() :: {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-
--spec call(commit_call(), context()) ->
-    commit_result() | no_return().
-call(Call, Context) ->
-    decode_call_result(Call, dmt_api_automaton_client:call(?NS, ?ID, encode_call(Call), Context)).
-
-%%
 
 -spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
     {ok, woody:result()} | no_return().
 handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], _Context, _Opts) ->
     Call = decode_call(Payload),
     {Result, Events} = handle_call(Call, read_history(Machine)),
-    {ok, construct_call_result(Call, Result, Events)};
+    {ok, construct_call_result(Result, Events)};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], Context, _Opts) ->
     %%% TODO It's generally prettier to make up a _migrating_ repository which is the special repository
     %%%      module designed to facilitate migrations between some preconfigured 'old' repository backend
@@ -100,9 +97,9 @@ handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}
 get_events_from_history(History) ->
     [{commit, Commit} || {_Version, Commit} <- lists:keysort(1, maps:to_list(History))].
 
-construct_call_result(Call, Response, Events) ->
+construct_call_result(Response, Events) ->
     #'CallResult'{
-        response = encode_call_result(Call, Response),
+        response = encode_call_result(Response),
         change = #'MachineStateChange'{aux_state = ?NIL, events = encode_events(Events)},
         action = #'ComplexAction'{}
     }.
@@ -118,8 +115,8 @@ encode_events(Events) ->
 
 %%
 
-handle_call({commit, Version, Commit}, History) ->
-    case dmt_api:apply_commit(Version, Commit, History) of
+handle_call({commit, Version, Commit, Snapshot}, History) ->
+    case dmt_api:apply_commit(Version, Commit, Snapshot, History) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
@@ -156,20 +153,20 @@ decode_event({arr, [{str, <<"commit">>}, Commit]}) ->
 
 %%
 
-encode_call({commit, Version, Commit}) ->
-    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit)]}.
+encode_call({commit, Version, Commit, Snapshot}) ->
+    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit), encode(snapshot, Snapshot)]}.
 
-decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
-    {commit, Version, decode(commit, Commit)}.
+decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit, Snapshot]}) ->
+    {commit, Version, decode(commit, Commit), decode(snapshot, Snapshot)}.
 
-encode_call_result({commit, _, _}, {ok, Snapshot}) ->
+encode_call_result({ok, Snapshot}) ->
     {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};
-encode_call_result({commit, _, _}, {error, Reason}) ->
+encode_call_result({error, Reason}) ->
     {arr, [{str, <<"err">>}, {str, atom_to_binary(Reason, utf8)}]}.
 
-decode_call_result({commit, _, _}, {arr, [{str, <<"ok">> }, Snapshot]}) ->
+decode_call_result({arr, [{str, <<"ok">> }, Snapshot]}) ->
     {ok, decode(snapshot, Snapshot)};
-decode_call_result({commit, _, _}, {arr, [{str, <<"err">>}, {str, Reason}]}) ->
+decode_call_result({arr, [{str, <<"err">>}, {str, Reason}]}) ->
     {error, binary_to_existing_atom(Reason, utf8)}.
 
 %%

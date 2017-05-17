@@ -7,7 +7,7 @@
 -export([checkout_object/4]).
 -export([pull/3]).
 -export([commit/4]).
--export([apply_commit/3]).
+-export([apply_commit/4]).
 
 %% behaviours
 -export([start/2]).
@@ -22,8 +22,13 @@
 -type context() :: woody_client:context().
 -type repository() :: module().
 
+-type version() :: dmt_api_repository:version().
+-type snapshot() :: dmt_api_repository:snapshot().
+-type commit() :: dmt_api_repository:commit().
+-type history() :: dmt_api_repository:history().
+
 -spec checkout(ref(), repository(), context()) ->
-    {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
+    {ok, snapshot()} | {error, version_not_found}.
 
 checkout({head, #'Head'{}}, Repository, Context) ->
     try_get_snapshot({head, #'Head'{}}, Repository, Context);
@@ -41,7 +46,7 @@ checkout({version, Version}, Repository, Context) ->
     end.
 
 -spec try_get_snapshot(ref(), repository(), context()) ->
-    {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
+    {ok, snapshot()} | {error, version_not_found}.
 
 try_get_snapshot({head, #'Head'{}}, Repository, Context) ->
     ClosestSnapshot = ensure_snapshot(dmt_api_cache:get_latest()),
@@ -58,11 +63,6 @@ try_get_snapshot({version, Version}, Repository, Context) ->
         {error, version_not_found} ->
             {error, version_not_found}
     end.
-
-ensure_snapshot({ok, Snapshot}) ->
-    Snapshot;
-ensure_snapshot({error, version_not_found}) ->
-    #'Snapshot'{version = 0, domain = dmt_domain:new()}.
 
 -spec checkout_object(ref(), object_ref(), repository(), context()) ->
     {ok, dmsl_domain_config_thrift:'VersionedObject'()} | {error, version_not_found | object_not_found}.
@@ -83,29 +83,34 @@ try_get_object(ObjectReference, #'Snapshot'{version = Version, domain = Domain})
             {error, object_not_found}
     end.
 
--spec pull(dmt_api_repository:version(), repository(), context()) ->
-    {ok, dmt_api_repository:history()} | {error, version_not_found}.
+-spec pull(version(), repository(), context()) ->
+    {ok, history()} | {error, version_not_found}.
 
 pull(Version, Repository, Context) ->
     dmt_api_repository:get_history(Repository, Version, undefined, Context).
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), repository(), context()) ->
-    {ok, dmt_api_repository:version()} | {error, version_not_found | operation_conflict}.
+-spec commit(version(), commit(), repository(), context()) ->
+    {ok, version()} | {error, version_not_found | operation_conflict}.
 
 commit(Version, Commit, Repository, Context) ->
-    case dmt_api_repository:commit(Repository, Version, Commit, Context) of
-        {ok, Snapshot = #'Snapshot'{version = VersionNext}} ->
-            _ = dmt_api_cache:put(Snapshot),
-            {ok, VersionNext};
-        {error, _} = Error ->
-            Error
+    case ensure_snapshot(dmt_api_cache:get_latest()) of
+        CachedSnapshot when Version >= CachedSnapshot#'Snapshot'.version ->
+            case dmt_api_repository:commit(Repository, Version, Commit, CachedSnapshot, Context) of
+                {ok, Snapshot = #'Snapshot'{version = VersionNext}} ->
+                    _ = dmt_api_cache:put(Snapshot),
+                    {ok, VersionNext};
+                {error, _} = Error ->
+                    Error
+            end;
+        _ ->
+            {error, operation_conflict}
     end.
 
--spec apply_commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:history()) ->
-    {ok, dmt_api_repository:snapshot()} | {error, term()}.
+-spec apply_commit(version(), commit(), snapshot(), history()) ->
+    {ok, snapshot()} | {error, term()}.
 
-apply_commit(VersionWas, #'Commit'{ops = Ops}, History) ->
-    SnapshotWas = dmt_history:head(History),
+apply_commit(VersionWas, #'Commit'{ops = Ops}, BaseSnapshot, History) ->
+    SnapshotWas = dmt_history:head(History, BaseSnapshot),
     case SnapshotWas of
         #'Snapshot'{version = VersionWas, domain = DomainWas} ->
             try
@@ -178,3 +183,8 @@ get_handler_spec(state_processor) ->
 
 get_repository_mod() ->
     genlib_app:env(?MODULE, repository, dmt_api_repository_v2).
+
+ensure_snapshot({ok, Snapshot}) ->
+    Snapshot;
+ensure_snapshot({error, version_not_found}) ->
+    #'Snapshot'{version = 0, domain = dmt_domain:new()}.

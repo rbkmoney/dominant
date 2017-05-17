@@ -2,6 +2,7 @@
 -behaviour(dmt_api_repository).
 
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
+-include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary">>).
@@ -10,7 +11,7 @@
 
 -export([get_history/2]).
 -export([get_history/3]).
--export([commit/3]).
+-export([commit/4]).
 
 %% State processor
 
@@ -63,9 +64,9 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:snapshot(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, Context) ->
+commit(Version, Commit, _, Context) ->
     call({commit, Version, Commit}, Context).
 
 %%
@@ -108,7 +109,7 @@ construct_signal_result(Events) ->
 %%
 
 handle_call({commit, Version, Commit}, History) ->
-    case dmt_api:apply_commit(Version, Commit, History) of
+    case dmt_api:apply_commit(Version, Commit, #'Snapshot'{version = 0, domain = dmt_domain:new()}, History) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
