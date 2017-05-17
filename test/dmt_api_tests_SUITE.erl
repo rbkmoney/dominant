@@ -61,6 +61,12 @@ init_per_suite(C) ->
         {handlers, [
             {lager_common_test_backend, [info, false]}
         ]}
+    ]) ++ genlib_app:start_application_with(dmt_client, [
+        {cache_update_interval, 5000}, % milliseconds
+        {service_urls, #{
+            'Repository' => <<"dominant:8022/v1/domain/repository">>,
+            'RepositoryClient' => <<"dominant:8022/v1/domain/repository_client">>
+        }}
     ]),
     [{suite_apps, Apps} | C].
 
@@ -79,7 +85,11 @@ init_per_group(_, C) ->
 start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
         {repository, Repository},
-        {automaton_service_url, "http://machinegun:8022/v1/automaton"}
+        {automaton_service_url, "http://machinegun:8022/v1/automaton"},
+        {max_cache_size, #{
+            elements => 1,
+            memory => 2048 % 2Kb
+        }}
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().

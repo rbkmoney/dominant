@@ -2,6 +2,7 @@
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
 
 -export([call/4]).
+-export([call/5]).
 -export([get_history/4]).
 -export([start/3]).
 
@@ -22,7 +23,13 @@
     response() |
     no_return().
 call(NS, ID, Args, Context) ->
-    Descriptor = construct_descriptor(NS, ID, #'HistoryRange'{}),
+    call(NS, ID, #'HistoryRange'{}, Args, Context).
+
+-spec call(ns(), id(), history_range(), args(), context()) ->
+    response() |
+    no_return().
+call(NS, ID, HistoryRange, Args, Context) ->
+    Descriptor = construct_descriptor(NS, ID, HistoryRange),
     case issue_rpc('Call', [Descriptor, Args], Context) of
         {ok, Result} ->
             Result;

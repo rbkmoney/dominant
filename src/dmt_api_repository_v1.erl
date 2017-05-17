@@ -2,6 +2,7 @@
 -behaviour(dmt_api_repository).
 
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
+-include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary">>).
@@ -9,8 +10,8 @@
 %% API
 
 -export([get_history/2]).
--export([get_history_since/2]).
--export([commit/3]).
+-export([get_history/3]).
+-export([commit/4]).
 
 %% State processor
 
@@ -23,15 +24,15 @@
 -type context() :: woody_context:ctx().
 
 -spec get_history(pos_integer() | undefined, context()) ->
-    dmt:history().
+    dmt_api_repository:history().
 get_history(Limit, Context) ->
     get_history_by_range(#'HistoryRange'{'after' = undefined, 'limit' = Limit}, Context).
 
--spec get_history_since(dmt:version(), context()) ->
-    {ok, dmt:history()} | {error, version_not_found}.
-get_history_since(Version, Context) ->
+-spec get_history(dmt_api_repository:version(), pos_integer() | undefined, context()) ->
+    {ok, dmt_api_repository:history()} | {error, version_not_found}.
+get_history(Version, Limit, Context) ->
     After = get_event_id(Version),
-    case get_history_by_range(#'HistoryRange'{'after' = After, 'limit' = undefined}, Context) of
+    case get_history_by_range(#'HistoryRange'{'after' = After, 'limit' = Limit}, Context) of
         History when is_map(History) ->
             {ok, History};
         Error ->
@@ -50,7 +51,7 @@ get_event_id(0) ->
 -type history()       :: dmsl_state_processing_thrift:'History'().
 
 -spec get_history_by_range(history_range(), context()) ->
-    dmt:history() | {error, version_not_found}.
+    dmt_api_repository:history() | {error, version_not_found}.
 get_history_by_range(HistoryRange, Context) ->
     case dmt_api_automaton_client:get_history(?NS, ?ID, HistoryRange, Context) of
         {ok, History} ->
@@ -63,17 +64,17 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt:version(), dmt:commit(), context()) ->
-    {ok, dmt:snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, Context) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:snapshot(), context()) ->
+    {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
+commit(Version, Commit, _, Context) ->
     call({commit, Version, Commit}, Context).
 
 %%
 
 -define(NIL, {nl, #msgpack_Nil{}}).
 
--type commit_call()   :: {commit, dmt:version(), dmt:commit()}.
--type commit_result() :: {ok, dmt:snapshot()} | {error, version_not_found | operation_conflict}.
+-type commit_call()   :: {commit, dmt_api_repository:version(), dmt_api_repository:commit()}.
+-type commit_result() :: {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
 
 -spec call(commit_call(), context()) ->
     commit_result() | no_return().
@@ -108,7 +109,7 @@ construct_signal_result(Events) ->
 %%
 
 handle_call({commit, Version, Commit}, History) ->
-    case dmt_api:apply_commit(Version, Commit, History) of
+    case dmt_api:apply_commit(Version, Commit, #'Snapshot'{version = 0, domain = dmt_domain:new()}, History) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
@@ -121,14 +122,14 @@ handle_call({commit, Version, Commit}, History) ->
 %%
 
 -spec read_history(history() | machine()) ->
-    dmt:history().
+    dmt_api_repository:history().
 read_history(#'Machine'{history = Events}) ->
     read_history(Events);
 read_history(Events) ->
     read_history(Events, #{}).
 
--spec read_history(dmsl_state_processing_thrift:'History'(), dmt:history()) ->
-    dmt:history().
+-spec read_history(dmsl_state_processing_thrift:'History'(), dmt_api_repository:history()) ->
+    dmt_api_repository:history().
 read_history([], History) ->
     History;
 read_history([#'Event'{id = Id, event_payload = EventData} | Rest], History) ->
