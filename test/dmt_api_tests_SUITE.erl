@@ -88,7 +88,7 @@ start_with_repository(Repository) ->
         {automaton_service_url, "http://machinegun:8022/v1/automaton"},
         {max_cache_size, #{
             elements => 1,
-            memory => 1 % 1byte
+            memory => 2048 % 2Kb
         }}
     ]).
 

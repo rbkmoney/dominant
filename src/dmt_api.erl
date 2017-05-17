@@ -44,17 +44,12 @@ checkout({version, Version}, Repository, Context) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
 
 try_get_snapshot({head, #'Head'{}}, Repository, Context) ->
-    ClosestSnapshot = case dmt_api_cache:get_latest() of
-        {ok, Snapshot} ->
-            Snapshot;
-        {error, version_not_found} ->
-            #'Snapshot'{version = 0, domain = dmt_domain:new()}
-    end,
+    ClosestSnapshot = ensure_snapshot(dmt_api_cache:get_latest()),
     {ok, History} = dmt_api_repository:get_history(Repository, ClosestSnapshot#'Snapshot'.version, undefined, Context),
     {ok, dmt_history:head(History, ClosestSnapshot)};
 
 try_get_snapshot({version, Version}, Repository, Context) ->
-    ClosestSnapshot = dmt_api_cache:get_closest(Version),
+    ClosestSnapshot = ensure_snapshot(dmt_api_cache:get_closest(Version)),
     From = min(Version, ClosestSnapshot#'Snapshot'.version),
     Limit = abs(Version - ClosestSnapshot#'Snapshot'.version),
     case dmt_api_repository:get_history(Repository, From, Limit, Context) of
@@ -63,6 +58,11 @@ try_get_snapshot({version, Version}, Repository, Context) ->
         {error, version_not_found} ->
             {error, version_not_found}
     end.
+
+ensure_snapshot({ok, Snapshot}) ->
+    Snapshot;
+ensure_snapshot({error, version_not_found}) ->
+    #'Snapshot'{version = 0, domain = dmt_domain:new()}.
 
 -spec checkout_object(ref(), object_ref(), repository(), context()) ->
     {ok, dmsl_domain_config_thrift:'VersionedObject'()} | {error, version_not_found | object_not_found}.

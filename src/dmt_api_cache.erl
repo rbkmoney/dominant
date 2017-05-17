@@ -51,47 +51,12 @@ get(Version) ->
 -spec get_latest() -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
 
 get_latest() ->
-    case ets:last(?TABLE) of
-        '$end_of_table' ->
-            {error, version_not_found};
-        Version ->
-            case get_snapshot(Version) of
-                {ok, _} = Result ->
-                    Result;
-                {error, version_not_found} ->
-                    gen_server:call(?SERVER, get_latest)
-            end
-    end.
+    exec_with_synchronous_retry(fun() -> get_latest_snapshot() end).
 
--spec get_closest(dmt_api_repository:version()) -> dmt_api_repository:snapshot().
+-spec get_closest(dmt_api_repository:version()) -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
 
 get_closest(Version) ->
-    Prev = ets:prev(?TABLE, Version),
-    Next = ets:next(?TABLE, Version),
-    get_closest(Prev, Next, Version).
-
-get_closest('$end_of_table', '$end_of_table', _Version) ->
-    #'Snapshot'{version = 0, domain = dmt_domain:new()};
-
-get_closest('$end_of_table', Next, Version) ->
-    check_closest_snapshot(get_snapshot(Next), Version);
-
-get_closest(Prev, '$end_of_table', Version) ->
-    check_closest_snapshot(get_snapshot(Prev), Version);
-
-get_closest(Prev, Next, Version) ->
-    case Next - Version < Version - Prev of
-        true ->
-            check_closest_snapshot(get_snapshot(Next), Version);
-        false ->
-            check_closest_snapshot(get_snapshot(Prev), Version)
-    end.
-
-check_closest_snapshot({ok, Snapshot}, _Version) ->
-    Snapshot;
-
-check_closest_snapshot({error, version_not_found}, Version) ->
-    gen_server:call(?SERVER, {get_closest, Version}).
+    exec_with_synchronous_retry(fun() -> get_closest_snapshot(Version) end).
 
 %%
 
@@ -114,11 +79,8 @@ init(_) ->
 
 -spec handle_call(term(), {pid(), term()}, state()) -> {reply, term(), state()}.
 
-handle_call(get_latest, _From, State) ->
-    {reply, get_latest(), State};
-
-handle_call({get_closest, Version}, _From, State) ->
-    {reply, get_closest(Version), State};
+handle_call({exec, F}, _From, State) ->
+    {reply, F(), State};
 
 handle_call(_Msg, _From, State) ->
     {noreply, State}.
@@ -148,6 +110,14 @@ code_change(_OldVsn, _State, _Extra) ->
 
 %% internal
 
+exec_with_synchronous_retry(F) ->
+    case F() of
+        {ok, Result} ->
+            {ok, Result};
+        {error, _} ->
+            gen_server:call(?SERVER, {exec, F})
+    end.
+
 get_snapshot(Version) ->
     case ets:lookup(?TABLE, Version) of
         [Snapshot] ->
@@ -156,14 +126,44 @@ get_snapshot(Version) ->
             {error, version_not_found}
     end.
 
+get_latest_snapshot() ->
+    case ets:last(?TABLE) of
+        '$end_of_table' ->
+            {error, version_not_found};
+        Version ->
+            get_snapshot(Version)
+    end.
+
+get_closest_snapshot(Version) ->
+    Prev = ets:prev(?TABLE, Version),
+    Next = ets:next(?TABLE, Version),
+    get_closest_snapshot(Prev, Next, Version).
+
+get_closest_snapshot('$end_of_table', '$end_of_table', _Version) ->
+    {error, version_not_found};
+
+get_closest_snapshot('$end_of_table', Next, _Version) ->
+    get_snapshot(Next);
+
+get_closest_snapshot(Prev, '$end_of_table', _Version) ->
+    get_snapshot(Prev);
+
+get_closest_snapshot(Prev, Next, Version) ->
+    case Next - Version < Version - Prev of
+        true ->
+            get_snapshot(Next);
+        false ->
+            get_snapshot(Prev)
+    end.
+
 cleanup() ->
     {Elements, Memory} = get_cache_size(),
     CacheLimits = genlib_app:env(dmt_api, max_cache_size),
-    MaxElements = genlib_map:get(elements, CacheLimits, 100),
-    MaxMemory = genlib_map:get(memory, CacheLimits, 100*1024*1024), % 100Mb by default
+    MaxElements = genlib_map:get(elements, CacheLimits, 20),
+    MaxMemory = genlib_map:get(memory, CacheLimits, 52428800), % 50Mb by default
     case Elements > MaxElements orelse Memory > MaxMemory of
         true ->
-            ok = remove_erliest(),
+            ok = remove_earliest(),
             cleanup();
         false ->
             ok
@@ -174,12 +174,12 @@ get_cache_size() ->
     Info = ets:info(?TABLE),
     {proplists:get_value(size, Info), WordSize * proplists:get_value(memory, Info)}.
 
-remove_erliest() ->
-    % Naive implementation, but probably good enought
-    remove_erliest(ets:first(?TABLE)).
+remove_earliest() ->
+    % Naive implementation, but probably good enough
+    remove_earliest(ets:first(?TABLE)).
 
-remove_erliest('$end_of_table') ->
+remove_earliest('$end_of_table') ->
     ok;
-remove_erliest(Key) ->
+remove_earliest(Key) ->
     true = ets:delete(?TABLE, Key),
     ok.
