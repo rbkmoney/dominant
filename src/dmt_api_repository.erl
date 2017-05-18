@@ -22,7 +22,7 @@
     history().
 -callback get_history(version(), pos_integer() | undefined, context()) ->
     {ok, history()} | {error, version_not_found}.
--callback commit(version(), commit(), snapshot(), context()) ->
+-callback commit(version(), commit(), version(), context()) ->
     {ok, snapshot()} | {error, version_not_found | operation_conflict}.
 
 -spec get_history(module(), pos_integer() | undefined, context()) ->
@@ -35,7 +35,7 @@ get_history(Mod, Limit, Context) ->
 get_history(Mod, Version, Limit, Context) ->
     Mod:get_history(Version, Limit, Context).
 
--spec commit(module(), version(), commit(), snapshot(), context()) ->
+-spec commit(module(), version(), commit(), version(), context()) ->
     {ok, snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Mod, Version, Commit, Snapshot, Context) ->
-    Mod:commit(Version, Commit, Snapshot, Context).
+commit(Mod, Version, Commit, BaseVersion, Context) ->
+    Mod:commit(Version, Commit, BaseVersion, Context).

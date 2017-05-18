@@ -2,7 +2,6 @@
 -behaviour(dmt_api_repository).
 
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
--include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary">>).
@@ -64,7 +63,7 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:snapshot(), context()) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:version(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
 commit(Version, Commit, _, Context) ->
     call({commit, Version, Commit}, Context).
@@ -85,9 +84,9 @@ call(Call, Context) ->
 
 -spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
     {ok, woody:result()} | no_return().
-handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], _Context, _Opts) ->
+handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], Context, _Opts) ->
     Call = decode_call(Payload),
-    {Result, Events} = handle_call(Call, read_history(Machine)),
+    {Result, Events} = handle_call(Call, read_history(Machine), Context),
     Response = encode_call_result(Result),
     {ok, construct_call_result(Response, [encode_event(E) || E <- Events])};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], _Context, _Opts) ->
@@ -108,8 +107,8 @@ construct_signal_result(Events) ->
 
 %%
 
-handle_call({commit, Version, Commit}, History) ->
-    case dmt_api:apply_commit(Version, Commit, #'Snapshot'{version = 0, domain = dmt_domain:new()}, History) of
+handle_call({commit, Version, Commit}, History, Context) ->
+    case dmt_api:apply_commit(Version, Commit, 0, History, ?MODULE, Context) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
