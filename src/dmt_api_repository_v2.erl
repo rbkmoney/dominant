@@ -10,7 +10,7 @@
 
 -export([get_history/2]).
 -export([get_history/3]).
--export([commit/4]).
+-export([commit/3]).
 
 %% State processor
 
@@ -64,14 +64,14 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:version(), context()) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, BaseVersion, Context) ->
+commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
         ?ID,
-        #'HistoryRange'{'after' = get_event_id(BaseVersion)},
-        encode_call({commit, Version, Commit, BaseVersion}),
+        #'HistoryRange'{'after' = get_event_id(Version)},
+        encode_call({commit, Version, Commit}),
         Context
     )).
 
@@ -114,8 +114,8 @@ encode_events(Events) ->
 
 %%
 
-handle_call({commit, Version, Commit, BaseVersion}, History, Context) ->
-    case dmt_api:apply_commit(Version, Commit, BaseVersion, History, ?MODULE, Context) of
+handle_call({commit, Version, Commit}, History, Context) ->
+    case dmt_api:apply_commit(Version, Commit, History, ?MODULE, Context) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
@@ -152,11 +152,11 @@ decode_event({arr, [{str, <<"commit">>}, Commit]}) ->
 
 %%
 
-encode_call({commit, Version, Commit, BaseVersion}) ->
-    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit), {i, BaseVersion}]}.
+encode_call({commit, Version, Commit}) ->
+    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit)]}.
 
-decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit, {i, BaseVersion}]}) ->
-    {commit, Version, decode(commit, Commit), BaseVersion}.
+decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
+    {commit, Version, decode(commit, Commit)}.
 
 encode_call_result({ok, Snapshot}) ->
     {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};

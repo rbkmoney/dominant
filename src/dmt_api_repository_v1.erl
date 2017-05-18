@@ -10,7 +10,7 @@
 
 -export([get_history/2]).
 -export([get_history/3]).
--export([commit/4]).
+-export([commit/3]).
 
 %% State processor
 
@@ -63,24 +63,20 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:version(), context()) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, _, Context) ->
-    call({commit, Version, Commit}, Context).
+commit(Version, Commit, Context) ->
+    decode_call_result(dmt_api_automaton_client:call(
+        ?NS,
+        ?ID,
+        #'HistoryRange'{'after' = get_event_id(Version)},
+        encode_call({commit, Version, Commit}),
+        Context
+    )).
 
 %%
 
 -define(NIL, {nl, #msgpack_Nil{}}).
-
--type commit_call()   :: {commit, dmt_api_repository:version(), dmt_api_repository:commit()}.
--type commit_result() :: {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-
--spec call(commit_call(), context()) ->
-    commit_result() | no_return().
-call(Call, Context) ->
-    decode_call_result(dmt_api_automaton_client:call(?NS, ?ID, encode_call(Call), Context)).
-
-%%
 
 -spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
     {ok, woody:result()} | no_return().
@@ -108,7 +104,7 @@ construct_signal_result(Events) ->
 %%
 
 handle_call({commit, Version, Commit}, History, Context) ->
-    case dmt_api:apply_commit(Version, Commit, 0, History, ?MODULE, Context) of
+    case dmt_api:apply_commit(Version, Commit, History, ?MODULE, Context) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->

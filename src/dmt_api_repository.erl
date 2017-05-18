@@ -4,7 +4,7 @@
 
 -export([get_history/3]).
 -export([get_history/4]).
--export([commit/5]).
+-export([commit/4]).
 
 -export_type([version/0]).
 -export_type([snapshot/0]).
@@ -22,7 +22,7 @@
     history().
 -callback get_history(version(), pos_integer() | undefined, context()) ->
     {ok, history()} | {error, version_not_found}.
--callback commit(version(), commit(), version(), context()) ->
+-callback commit(version(), commit(), context()) ->
     {ok, snapshot()} | {error, version_not_found | operation_conflict}.
 
 -spec get_history(module(), pos_integer() | undefined, context()) ->
@@ -35,7 +35,7 @@ get_history(Mod, Limit, Context) ->
 get_history(Mod, Version, Limit, Context) ->
     Mod:get_history(Version, Limit, Context).
 
--spec commit(module(), version(), commit(), version(), context()) ->
+-spec commit(module(), version(), commit(), context()) ->
     {ok, snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Mod, Version, Commit, BaseVersion, Context) ->
-    Mod:commit(Version, Commit, BaseVersion, Context).
+commit(Mod, Version, Commit, Context) ->
+    Mod:commit(Version, Commit, Context).

@@ -7,7 +7,7 @@
 -export([checkout_object/4]).
 -export([pull/3]).
 -export([commit/4]).
--export([apply_commit/6]).
+-export([apply_commit/5]).
 
 %% behaviours
 -export([start/2]).
@@ -94,7 +94,7 @@ pull(Version, Repository, Context) ->
 commit(Version, Commit, Repository, Context) ->
     case ensure_snapshot(dmt_api_cache:get_latest()) of
         #'Snapshot'{version = CachedVersion} when Version >= CachedVersion ->
-            case dmt_api_repository:commit(Repository, Version, Commit, CachedVersion, Context) of
+            case dmt_api_repository:commit(Repository, Version, Commit, Context) of
                 {ok, Snapshot = #'Snapshot'{version = VersionNext}} ->
                     _ = dmt_api_cache:put(Snapshot),
                     {ok, VersionNext};
@@ -105,32 +105,30 @@ commit(Version, Commit, Repository, Context) ->
             {error, operation_conflict}
     end.
 
--spec apply_commit(version(), commit(), version(), history(), repository(), context()) ->
+-spec apply_commit(version(), commit(), history(), repository(), context()) ->
     {ok, snapshot()} | {error, term()}.
 
-apply_commit(VersionWas, #'Commit'{ops = Ops}, BaseVersion, History, Repository, Context) ->
-    case checkout({version, BaseVersion}, Repository, Context) of
+% FIXME map_size(History) should be in dmt_history.
+apply_commit(VersionWas, #'Commit'{ops = Ops}, History, Repository, Context) when map_size(History) =:= 0 ->
+    case checkout({version, VersionWas}, Repository, Context) of
         {ok, BaseSnapshot} ->
-            SnapshotWas = dmt_history:head(History, BaseSnapshot),
-            try_apply_commit(VersionWas, SnapshotWas, Ops);
+            try_apply_commit(BaseSnapshot, Ops);
         {error, version_not_found} ->
             {error, version_not_found}
-    end.
+    end;
 
-try_apply_commit(VersionWas, #'Snapshot'{version = VersionWas, domain = DomainWas}, Ops) ->
+apply_commit(_, _, History, _, _) ->
+    % FIXME move maps:keys() to dmt_history
+    {error, {head_mismatch, lists:max(maps:keys(History))}}.
+
+try_apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, Ops) ->
     try
         Domain = dmt_domain:apply_operations(Ops, DomainWas),
         {ok, #'Snapshot'{version = VersionWas + 1, domain = Domain}}
     catch
         Reason ->
             {error, Reason}
-    end;
-
-try_apply_commit(VersionWas, #'Snapshot'{version = Version}, _) when Version > VersionWas ->
-    {error, {head_mismatch, Version}};
-
-try_apply_commit(_, _, _) ->
-    {error, version_not_found}.
+    end.
 
 %% behaviours
 -spec start(application:start_type(), term()) -> {ok, pid()} | {error, term()}.
