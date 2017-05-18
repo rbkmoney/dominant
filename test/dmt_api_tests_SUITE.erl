@@ -59,7 +59,7 @@ init_per_suite(C) ->
         {error_logger_hwm, 600},
         {suppress_application_start_stop, true},
         {handlers, [
-            {lager_common_test_backend, [info, false]}
+            {lager_common_test_backend, warning}
         ]}
     ]) ++ genlib_app:start_application_with(dmt_client, [
         {cache_update_interval, 5000}, % milliseconds
