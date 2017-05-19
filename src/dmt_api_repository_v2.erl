@@ -2,7 +2,6 @@
 -behaviour(dmt_api_repository).
 
 -include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
--include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary/v2">>).
@@ -11,7 +10,7 @@
 
 -export([get_history/2]).
 -export([get_history/3]).
--export([commit/4]).
+-export([commit/3]).
 
 %% State processor
 
@@ -65,14 +64,14 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), dmt_api_repository:snapshot(), context()) ->
+-spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
     {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
-commit(Version, Commit, Snapshot, Context) ->
+commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
         ?ID,
-        #'HistoryRange'{'after' = get_event_id(Snapshot#'Snapshot'.version)},
-        encode_call({commit, Version, Commit, Snapshot}),
+        #'HistoryRange'{'after' = get_event_id(Version)},
+        encode_call({commit, Version, Commit}),
         Context
     )).
 
@@ -82,9 +81,9 @@ commit(Version, Commit, Snapshot, Context) ->
 
 -spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
     {ok, woody:result()} | no_return().
-handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], _Context, _Opts) ->
+handle_function('ProcessCall', [#'CallArgs'{arg = Payload, machine = Machine}], Context, _Opts) ->
     Call = decode_call(Payload),
-    {Result, Events} = handle_call(Call, read_history(Machine)),
+    {Result, Events} = handle_call(Call, read_history(Machine), Context),
     {ok, construct_call_result(Result, Events)};
 handle_function('ProcessSignal', [#'SignalArgs'{signal = {init, #'InitSignal'{}}}], Context, _Opts) ->
     %%% TODO It's generally prettier to make up a _migrating_ repository which is the special repository
@@ -115,8 +114,8 @@ encode_events(Events) ->
 
 %%
 
-handle_call({commit, Version, Commit, Snapshot}, History) ->
-    case dmt_api:apply_commit(Version, Commit, Snapshot, History) of
+handle_call({commit, Version, Commit}, History, Context) ->
+    case dmt_api_repository:apply_commit(Version, Commit, History, ?MODULE, Context) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->
@@ -153,11 +152,11 @@ decode_event({arr, [{str, <<"commit">>}, Commit]}) ->
 
 %%
 
-encode_call({commit, Version, Commit, Snapshot}) ->
-    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit), encode(snapshot, Snapshot)]}.
+encode_call({commit, Version, Commit}) ->
+    {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit)]}.
 
-decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit, Snapshot]}) ->
-    {commit, Version, decode(commit, Commit), decode(snapshot, Snapshot)}.
+decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
+    {commit, Version, decode(commit, Commit)}.
 
 encode_call_result({ok, Snapshot}) ->
     {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};
