@@ -13,7 +13,7 @@
     ('checkoutObject', woody:args(), context(), woody:options()) ->
         {ok, dmsl_domain_config_thrift:'VersionedObject'()} | no_return().
 handle_function('checkoutObject', [Reference, ObjectReference], Context, Repository) ->
-    case dmt_api:checkout_object(Reference, ObjectReference, Repository, Context) of
+    case dmt_api_repository:checkout_object(Reference, ObjectReference, Repository, Context) of
         {ok, Object} ->
             {ok, Object};
         {error, object_not_found} ->

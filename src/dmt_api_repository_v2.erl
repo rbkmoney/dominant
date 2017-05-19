@@ -115,7 +115,7 @@ encode_events(Events) ->
 %%
 
 handle_call({commit, Version, Commit}, History, Context) ->
-    case dmt_api:apply_commit(Version, Commit, History, ?MODULE, Context) of
+    case dmt_api_repository:apply_commit(Version, Commit, History, ?MODULE, Context) of
         {ok, _} = Ok ->
             {Ok, [{commit, Commit}]};
         {error, version_not_found} ->

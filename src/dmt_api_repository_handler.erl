@@ -17,7 +17,7 @@
     ('Pull', woody:args(), context(), woody:options()) ->
         {ok, dmt_api_repository:history()} | no_return().
 handle_function('Commit', [Version, Commit], Context, Repository) ->
-    case dmt_api:commit(Version, Commit, Repository, Context) of
+    case dmt_api_repository:commit(Version, Commit, Repository, Context) of
         {ok, VersionNext} ->
             {ok, VersionNext};
         {error, operation_conflict} ->
@@ -26,14 +26,14 @@ handle_function('Commit', [Version, Commit], Context, Repository) ->
             woody_error:raise(business, #'VersionNotFound'{})
     end;
 handle_function('Checkout', [Reference], Context, Repository) ->
-    case dmt_api:checkout(Reference, Repository, Context) of
+    case dmt_api_repository:checkout(Reference, Repository, Context) of
         {ok, Snapshot} ->
             {ok, Snapshot};
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{})
     end;
 handle_function('Pull', [Version], Context, Repository) ->
-    case dmt_api:pull(Version, Repository, Context) of
+    case dmt_api_repository:pull(Version, Repository, Context) of
         {ok, History} ->
             {ok, History};
         {error, version_not_found} ->
