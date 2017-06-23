@@ -111,7 +111,7 @@ handle_call({commit, Version, Commit}, History, Context) ->
             {{error, version_not_found}, []};
         {error, Reason} ->
             _ = lager:info("commit failed: ~p", [Reason]),
-            {{error, operation_conflict}, []}
+            {{error, {operation_conflict, Reason}}, []}
     end.
 
 %%

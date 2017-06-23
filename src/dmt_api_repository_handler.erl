@@ -20,8 +20,18 @@ handle_function('Commit', [Version, Commit], Context, Repository) ->
     case dmt_api_repository:commit(Version, Commit, Repository, Context) of
         {ok, VersionNext} ->
             {ok, VersionNext};
-        {error, operation_conflict} ->
-            woody_error:raise(business, #'OperationConflict'{});
+        {error, {operation_conflict, {conflict, ConflictDescription}}} ->
+            Conflict = case ConflictDescription of
+                {object_already_exists = Error, Object} ->
+                    {Error, #'ObjectAlreadyExistsConflict'{object = Object}};
+                {object_not_found = Error, Ref} ->
+                    {Error, #'ObjectNotFoundConflict'{object_ref = Ref}};
+                {object_reference_mismatch = Error, Ref} ->
+                    {Error, #'ObjectReferenceMismatchConflict'{object_ref = Ref}};
+                head_mismatch = Error ->
+                    {Error, #'HeadMismatchConflict'{}}
+            end,
+            woody_error:raise(business, #'OperationConflict'{conflict = Conflict});
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{})
     end;

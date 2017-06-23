@@ -87,7 +87,7 @@ commit(Version, Commit, Repository, Context) ->
                     Error
             end;
         _ ->
-            {error, operation_conflict}
+            {error, {operation_conflict, {conflict, head_mismatch}}}
     end.
 
 -spec apply_commit(version(), commit(), history(), repository(), context()) ->
@@ -102,8 +102,8 @@ apply_commit(VersionWas, #'Commit'{ops = Ops}, History, Repository, Context) whe
             {error, version_not_found}
     end;
 
-apply_commit(_, _, History, _, _) ->
-    {error, {head_mismatch, lists:max(maps:keys(History))}}. % FIXME move to dmt_history
+apply_commit(_, _, _, _, _) ->
+    {error, version_not_found}. % FIXME move to dmt_history
 
 %% Internal
 
