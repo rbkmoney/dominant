@@ -65,7 +65,9 @@ get_history_by_range(HistoryRange, Context) ->
 %%
 
 -spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
-    {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
+    {ok, dmt_api_repository:snapshot()} |
+    {error, version_not_found |
+        {operation_conflict, dmt_api_repository:object_ref() | dmt_api_repository:domain_object()}}.
 commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,

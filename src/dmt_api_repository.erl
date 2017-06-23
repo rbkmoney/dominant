@@ -25,12 +25,15 @@
 -type repository() :: module().
 -type context() :: woody_context:ctx().
 
+-type domain_object() :: dmsl_domain_thrift:'DomainObject'().
+
 -callback get_history(pos_integer() | undefined, context()) ->
     history().
 -callback get_history(version(), pos_integer() | undefined, context()) ->
     {ok, history()} | {error, version_not_found}.
 -callback commit(version(), commit(), context()) ->
-    {ok, snapshot()} | {error, version_not_found | operation_conflict}.
+    {ok, snapshot()} |
+    {error, version_not_found | {operation_conflict, object_ref() | domain_object()}}.
 
 %%
 
@@ -74,7 +77,7 @@ pull(Version, Repository, Context) ->
     get_history(Repository, Version, undefined, Context).
 
 -spec commit(version(), commit(), repository(), context()) ->
-    {ok, version()} | {error, version_not_found | operation_conflict}.
+    {ok, version()} | {error, version_not_found | {operation_conflict, {conflict, head_mismatch}}}.
 
 commit(Version, Commit, Repository, Context) ->
     case ensure_snapshot(dmt_api_cache:get_latest()) of
