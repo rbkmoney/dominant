@@ -33,7 +33,10 @@
     {ok, history()} | {error, version_not_found}.
 -callback commit(version(), commit(), context()) ->
     {ok, snapshot()} |
-    {error, version_not_found | {operation_conflict, object_ref() | domain_object()}}.
+    {error, version_not_found | {operation_conflict, {conflict,
+        {object_already_exists, dmt_api_repository:domain_object()} |
+        {object_not_found | object_reference_mismatch, dmt_api_repository:object_ref()}
+    }}}.
 
 %%
 
@@ -77,7 +80,12 @@ pull(Version, Repository, Context) ->
     get_history(Repository, Version, undefined, Context).
 
 -spec commit(version(), commit(), repository(), context()) ->
-    {ok, version()} | {error, version_not_found | {operation_conflict, {conflict, head_mismatch}}}.
+    {ok, version()} |
+    {error, version_not_found | {operation_conflict, {conflict,
+        head_mismatch |
+        {object_already_exists, dmt_api_repository:domain_object()} |
+        {object_not_found | object_reference_mismatch, dmt_api_repository:object_ref()}
+    }}}.
 
 commit(Version, Commit, Repository, Context) ->
     case ensure_snapshot(dmt_api_cache:get_latest()) of
