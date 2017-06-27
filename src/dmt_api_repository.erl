@@ -25,8 +25,6 @@
 -type repository() :: module().
 -type context() :: woody_context:ctx().
 
--type domain_object() :: dmsl_domain_thrift:'DomainObject'().
-
 -callback get_history(pos_integer() | undefined, context()) ->
     history().
 -callback get_history(version(), pos_integer() | undefined, context()) ->
@@ -34,8 +32,10 @@
 -callback commit(version(), commit(), context()) ->
     {ok, snapshot()} |
     {error, version_not_found | {operation_conflict, {conflict,
-        {object_already_exists, dmt_api_repository:domain_object()} |
-        {object_not_found | object_reference_mismatch, dmt_api_repository:object_ref()}
+        {object_already_exists, dmt_api_repository:object_ref()} |
+        {object_not_found, dmt_api_repository:object_ref()} |
+        {object_reference_mismatch, dmt_api_repository:object_ref()} |
+        {objects_not_exist, list({dmt_api_repository:object_ref(), list(dmt_api_repository:object_ref())})}
     }}}.
 
 %%
@@ -81,11 +81,16 @@ pull(Version, Repository, Context) ->
 
 -spec commit(version(), commit(), repository(), context()) ->
     {ok, version()} |
-    {error, version_not_found | {operation_conflict, {conflict,
+    {error,
+        version_not_found |
         head_mismatch |
-        {object_already_exists, dmt_api_repository:domain_object()} |
-        {object_not_found | object_reference_mismatch, dmt_api_repository:object_ref()}
-    }}}.
+        {operation_conflict, {conflict,
+            {object_already_exists, object_ref()} |
+            {object_not_found, object_ref()} |
+            {object_reference_mismatch, object_ref()} |
+            {objects_not_exist, [{object_ref(), [object_ref()]}]}
+        }}
+    }.
 
 commit(Version, Commit, Repository, Context) ->
     case ensure_snapshot(dmt_api_cache:get_latest()) of
@@ -98,7 +103,7 @@ commit(Version, Commit, Repository, Context) ->
                     Error
             end;
         _ ->
-            {error, {operation_conflict, {conflict, head_mismatch}}}
+            {error, head_mismatch}
     end.
 
 -spec apply_commit(version(), commit(), history(), repository(), context()) ->
