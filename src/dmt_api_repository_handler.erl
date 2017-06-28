@@ -20,7 +20,7 @@ handle_function('Commit', [Version, Commit], Context, Repository) ->
     case dmt_api_repository:commit(Version, Commit, Repository, Context) of
         {ok, VersionNext} ->
             {ok, VersionNext};
-        {error, {operation_conflict, {conflict, Conflict}}} ->
+        {error, {operation_conflict, Conflict}} ->
             woody_error:raise(business, #'OperationConflict'{
                 conflict = handle_operation_conflict(Conflict)
             });

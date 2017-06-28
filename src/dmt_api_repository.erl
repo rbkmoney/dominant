@@ -14,6 +14,7 @@
 -export_type([snapshot/0]).
 -export_type([commit/0]).
 -export_type([history/0]).
+-export_type([operation_conflict/0]).
 
 -type version() :: dmsl_domain_config_thrift:'Version'().
 -type snapshot() :: dmsl_domain_config_thrift:'Snapshot'().
@@ -25,18 +26,19 @@
 -type repository() :: module().
 -type context() :: woody_context:ctx().
 
+-type operation_conflict() ::
+    {object_already_exists, object_ref()} |
+    {object_not_found, object_ref()} |
+    {object_reference_mismatch, object_ref()} |
+    {objects_not_exist, [{object_ref(), [object_ref()]}]}.
+
 -callback get_history(pos_integer() | undefined, context()) ->
     history().
 -callback get_history(version(), pos_integer() | undefined, context()) ->
     {ok, history()} | {error, version_not_found}.
 -callback commit(version(), commit(), context()) ->
     {ok, snapshot()} |
-    {error, version_not_found | {operation_conflict, {conflict,
-        {object_already_exists, dmt_api_repository:object_ref()} |
-        {object_not_found, dmt_api_repository:object_ref()} |
-        {object_reference_mismatch, dmt_api_repository:object_ref()} |
-        {objects_not_exist, list({dmt_api_repository:object_ref(), list(dmt_api_repository:object_ref())})}
-    }}}.
+    {error, version_not_found | {operation_conflict, operation_conflict()}}.
 
 %%
 
@@ -46,7 +48,8 @@
 checkout({head, #'Head'{}}, Repository, Context) ->
     ClosestSnapshot = ensure_snapshot(dmt_api_cache:get_latest()),
     {ok, History} = get_history(Repository, ClosestSnapshot#'Snapshot'.version, undefined, Context),
-    Snapshot = dmt_history:head(History, ClosestSnapshot),
+    %% TO DO: Need to fix dmt_history:head. It can return {error, ...}
+    {ok, Snapshot} = dmt_history:head(History, ClosestSnapshot),
     {ok, dmt_api_cache:put(Snapshot)};
 
 checkout({version, Version}, Repository, Context) ->
@@ -81,16 +84,7 @@ pull(Version, Repository, Context) ->
 
 -spec commit(version(), commit(), repository(), context()) ->
     {ok, version()} |
-    {error,
-        version_not_found |
-        head_mismatch |
-        {operation_conflict, {conflict,
-            {object_already_exists, object_ref()} |
-            {object_not_found, object_ref()} |
-            {object_reference_mismatch, object_ref()} |
-            {objects_not_exist, [{object_ref(), [object_ref()]}]}
-        }}
-    }.
+    {error, version_not_found | head_mismatch | {operation_conflict, operation_conflict()}}.
 
 commit(Version, Commit, Repository, Context) ->
     case ensure_snapshot(dmt_api_cache:get_latest()) of
@@ -132,7 +126,9 @@ try_get_snapshot(Version, Repository, Context) ->
     Limit = abs(Version - ClosestSnapshot#'Snapshot'.version),
     case get_history(Repository, From, Limit, Context) of
         {ok, History} when map_size(History) =:= Limit ->
-            {ok, dmt_history:travel(Version, History, ClosestSnapshot)};
+            %% TO DO: Need to fix dmt_history:travel. It can return {error, ...}
+            {ok, Snapshot} = dmt_history:travel(Version, History, ClosestSnapshot),
+            {ok, Snapshot};
         {error, version_not_found} ->
             {error, version_not_found}
     end.
@@ -149,12 +145,11 @@ try_get_object(ObjectReference, #'Snapshot'{version = Version, domain = Domain})
     end.
 
 try_apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, Ops) ->
-    try
-        Domain = dmt_domain:apply_operations(Ops, DomainWas),
-        {ok, #'Snapshot'{version = VersionWas + 1, domain = Domain}}
-    catch
-        Reason ->
-            {error, Reason}
+    case dmt_domain:apply_operations(Ops, DomainWas) of
+        {ok, Domain} ->
+            {ok, #'Snapshot'{version = VersionWas + 1, domain = Domain}};
+        {error, _} = Error ->
+            Error
     end.
 
 -spec ensure_snapshot({ok, snapshot()} | {error, version_not_found}) ->

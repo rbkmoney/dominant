@@ -65,12 +65,7 @@ get_history_by_range(HistoryRange, Context) ->
 
 -spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
     {ok, dmt_api_repository:snapshot()} |
-    {error, version_not_found | {operation_conflict, {conflict,
-        {object_already_exists, dmt_api_repository:object_ref()} |
-        {object_not_found, dmt_api_repository:object_ref()} |
-        {object_reference_mismatch, dmt_api_repository:object_ref()} |
-        {objects_not_exist, list({dmt_api_repository:object_ref(), list(dmt_api_repository:object_ref())})}
-    }}}.
+    {error, version_not_found | {operation_conflict, dmt_api_repository:operation_conflict()}}.
 commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
