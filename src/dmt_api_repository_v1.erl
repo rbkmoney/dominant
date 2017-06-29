@@ -64,7 +64,8 @@ get_history_by_range(HistoryRange, Context) ->
 %%
 
 -spec commit(dmt_api_repository:version(), dmt_api_repository:commit(), context()) ->
-    {ok, dmt_api_repository:snapshot()} | {error, version_not_found | operation_conflict}.
+    {ok, dmt_api_repository:snapshot()} |
+    {error, version_not_found | {operation_conflict, dmt_api_repository:operation_conflict()}}.
 commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
@@ -111,7 +112,7 @@ handle_call({commit, Version, Commit}, History, Context) ->
             {{error, version_not_found}, []};
         {error, Reason} ->
             _ = lager:info("commit failed: ~p", [Reason]),
-            {{error, operation_conflict}, []}
+            {{error, {operation_conflict, Reason}}, []}
     end.
 
 %%

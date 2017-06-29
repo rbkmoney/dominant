@@ -20,10 +20,14 @@ handle_function('Commit', [Version, Commit], Context, Repository) ->
     case dmt_api_repository:commit(Version, Commit, Repository, Context) of
         {ok, VersionNext} ->
             {ok, VersionNext};
-        {error, operation_conflict} ->
-            woody_error:raise(business, #'OperationConflict'{});
+        {error, {operation_conflict, Conflict}} ->
+            woody_error:raise(business, #'OperationConflict'{
+                conflict = handle_operation_conflict(Conflict)
+            });
         {error, version_not_found} ->
-            woody_error:raise(business, #'VersionNotFound'{})
+            woody_error:raise(business, #'VersionNotFound'{});
+        {error, head_mismatch} ->
+            woody_error:raise(business, #'ObsoleteCommitVersion'{})
     end;
 handle_function('Checkout', [Reference], Context, Repository) ->
     case dmt_api_repository:checkout(Reference, Repository, Context) of
@@ -38,4 +42,23 @@ handle_function('Pull', [Version], Context, Repository) ->
             {ok, History};
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{})
+    end.
+
+%%
+handle_operation_conflict(Conflict) ->
+    case Conflict of
+        {object_already_exists, Ref} ->
+            {object_already_exists, #'ObjectAlreadyExistsConflict'{object_ref = Ref}};
+        {object_not_found, Ref} ->
+            {object_not_found, #'ObjectNotFoundConflict'{object_ref = Ref}};
+        {object_reference_mismatch, Ref} ->
+            {object_reference_mismatch, #'ObjectReferenceMismatchConflict'{object_ref = Ref}};
+        {objects_not_exist, Refs} ->
+            ObjectRefs = lists:map(
+                fun({Ref, ReferencedBy}) ->
+                    #'NonexistantObject'{object_ref = Ref, referenced_by = ReferencedBy}
+                end,
+                Refs
+            ),
+            {objects_not_exist, #'ObjectsNotExistConflict'{object_refs = ObjectRefs}}
     end.
