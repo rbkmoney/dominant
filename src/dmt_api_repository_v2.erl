@@ -162,12 +162,12 @@ decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
 encode_call_result({ok, Snapshot}) ->
     {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};
 encode_call_result({error, Reason}) ->
-    {arr, [{str, <<"err">>}, {str, atom_to_binary(Reason, utf8)}]}.
+    {arr, [{str, <<"err">>}, {bin, term_to_binary(Reason)}]}.
 
 decode_call_result({arr, [{str, <<"ok">> }, Snapshot]}) ->
     {ok, decode(snapshot, Snapshot)};
-decode_call_result({arr, [{str, <<"err">>}, {str, Reason}]}) ->
-    {error, binary_to_existing_atom(Reason, utf8)}.
+decode_call_result({arr, [{str, <<"err">>}, {bin, Reason}]}) ->
+    {error, binary_to_term(Reason)}.
 
 %%
 
