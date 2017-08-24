@@ -129,6 +129,8 @@ try_get_snapshot(Version, Repository, Context) ->
             %% TO DO: Need to fix dmt_history:travel. It can return {error, ...}
             {ok, Snapshot} = dmt_history:travel(Version, History, ClosestSnapshot),
             {ok, Snapshot};
+        {ok, #{}} ->
+            {error, version_not_found};
         {error, version_not_found} ->
             {error, version_not_found}
     end.
