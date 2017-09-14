@@ -1,7 +1,7 @@
 -module(dmt_api_repository_v2).
 -behaviour(dmt_api_repository).
 
--include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
+-include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary/v2">>).
@@ -45,9 +45,9 @@ get_event_id(0) ->
 
 %%
 
--type history_range() :: dmsl_state_processing_thrift:'HistoryRange'().
--type machine()       :: dmsl_state_processing_thrift:'Machine'().
--type history()       :: dmsl_state_processing_thrift:'History'().
+-type history_range() :: mg_proto_state_processing_thrift:'HistoryRange'().
+-type machine()       :: mg_proto_state_processing_thrift:'Machine'().
+-type history()       :: mg_proto_state_processing_thrift:'History'().
 
 -spec get_history_by_range(history_range(), context()) ->
     dmt_api_repository:history() | {error, version_not_found}.
@@ -135,7 +135,7 @@ read_history(#'Machine'{history = Events}) ->
 read_history(Events) ->
     read_history(Events, #{}).
 
--spec read_history([dmsl_state_processing_thrift:'Event'()], dmt_api_repository:history()) ->
+-spec read_history([mg_proto_state_processing_thrift:'Event'()], dmt_api_repository:history()) ->
     dmt_api_repository:history().
 read_history([], History) ->
     History;
