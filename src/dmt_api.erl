@@ -58,7 +58,7 @@ get_handler_spec(repository_client) ->
     }};
 get_handler_spec(state_processor) ->
     {"/v1/stateproc", {
-        {dmsl_state_processing_thrift, 'Processor'},
+        {mg_proto_state_processing_thrift, 'Processor'},
         get_repository_mod()
     }}.
 

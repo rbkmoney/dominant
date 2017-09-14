@@ -1,5 +1,5 @@
 -module(dmt_api_automaton_client).
--include_lib("dmsl/include/dmsl_state_processing_thrift.hrl").
+-include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 -export([call/4]).
 -export([call/5]).
@@ -8,13 +8,13 @@
 
 %%
 
--type ns()            :: dmsl_base_thrift:'Namespace'().
--type id()            :: dmsl_base_thrift:'ID'().
--type args()          :: dmsl_state_processing_thrift:'Args'().
--type response()      :: dmsl_state_processing_thrift:'CallResponse'().
--type descriptor()    :: dmsl_state_processing_thrift:'MachineDescriptor'().
--type history_range() :: dmsl_state_processing_thrift:'HistoryRange'().
--type history()       :: dmsl_state_processing_thrift:'History'().
+-type ns()            :: mg_proto_base_thrift:'Namespace'().
+-type id()            :: mg_proto_base_thrift:'ID'().
+-type args()          :: mg_proto_state_processing_thrift:'Args'().
+-type response()      :: mg_proto_state_processing_thrift:'CallResponse'().
+-type descriptor()    :: mg_proto_state_processing_thrift:'MachineDescriptor'().
+-type history_range() :: mg_proto_state_processing_thrift:'HistoryRange'().
+-type history()       :: mg_proto_state_processing_thrift:'History'().
 -type context()       :: woody_context:ctx().
 
 %%
@@ -41,8 +41,8 @@ call(NS, ID, HistoryRange, Args, Context) ->
 -spec get_history(ns(), id(), history_range(), context()) ->
     {ok, history()} |
     {error,
-        dmsl_state_processing_thrift:'EventNotFound'() |
-        dmsl_state_processing_thrift:'MachineNotFound'()
+        mg_proto_state_processing_thrift:'EventNotFound'() |
+        mg_proto_state_processing_thrift:'MachineNotFound'()
     } |
     no_return().
 get_history(NS, ID, HistoryRange, Context) ->
@@ -76,7 +76,7 @@ construct_descriptor(NS, ID, HistoryRange) ->
 -spec issue_rpc(atom(), list(term()), context()) ->
     term() | no_return().
 issue_rpc(Method, Args, Context) ->
-    Request = {{dmsl_state_processing_thrift, 'Automaton'}, Method, Args},
+    Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
     Opts = #{url => URL, event_handler => {woody_event_handler_default, undefined}},
     case woody_client:call(Request, Opts, Context) of
