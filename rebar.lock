@@ -4,7 +4,7 @@
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"1.0.2">>},2},
  {<<"dmsl">>,
   {git,"git@github.com:rbkmoney/damsel.git",
-       {ref,"c7708e0f3146535858268c508a302d500a69a6a6"}},
+       {ref,"14e4d190162295fd3f5ecc1230762690e0f88485"}},
   0},
  {<<"dmt_client">>,
   {git,"git@github.com:rbkmoney/dmt_client.git",
@@ -46,7 +46,7 @@
   1},
  {<<"woody">>,
   {git,"git@github.com:rbkmoney/woody_erlang.git",
-       {ref,"2d00bda10454534e230d452b7338debafaf0a869"}},
+       {ref,"ad1e91050c36d8de15f1c7d8dd8a2c682d2d158c"}},
   0}]}.
 [
 {pkg_hash,[
