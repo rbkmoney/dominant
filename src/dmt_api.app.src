@@ -9,7 +9,8 @@
         lager_logstash_formatter,
         woody,
         dmsl,
-        dmt_core
+        dmt_core,
+        mg_proto
     ]},
     {mod, {dmt_api, []}},
     {env, []}
