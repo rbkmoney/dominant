@@ -78,7 +78,13 @@ construct_descriptor(NS, ID, HistoryRange) ->
 issue_rpc(Method, Args, Context) ->
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
-    Opts = #{url => URL, event_handler => {woody_event_handler_default, undefined}},
+    Opts = #{
+        url => URL,
+        event_handler => {woody_event_handler_default, undefined},
+        transport_opts => [
+            {recv_timeout, 60000}
+        ]
+    },
     case woody_client:call(Request, Opts, Context) of
         {ok, _} = Ok ->
             Ok;
