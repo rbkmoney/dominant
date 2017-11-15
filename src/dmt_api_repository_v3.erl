@@ -176,7 +176,6 @@ apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{op
             Snapshot = #'Snapshot'{version = VersionWas + 1, domain = Domain},
             {{ok, Snapshot}, [make_event(Snapshot, Commit)]};
         {error, Reason} ->
-            _ = lager:warning("commit failed: ~p", [Reason]),
             {{error, {operation_conflict, Reason}}, []}
     end.
 
@@ -210,13 +209,11 @@ read_history([#mg_stateproc_Event{id = Id, event_payload = EventData} | Rest], #
     end.
 
 squash_state(#st{snapshot = BaseSnapshot, history = History}) ->
-    % TODO deal with errors here
     case dmt_history:head(History, BaseSnapshot) of
         {ok, Snapshot} ->
             {ok, Snapshot};
-        {error, _} = Error ->
-            _ = lager:error("squash_state error: ~p", [Error]),
-            {error, version_not_found}
+        {error, Error} ->
+            error(Error)
     end.
 
 %%
@@ -233,7 +230,6 @@ convert_v2_events([{Version1, Commit} | Others], #'Snapshot'{version = Version0}
         {{ok, Snapshot}, [Event]} ->
             convert_v2_events(Others, Snapshot, [Event | Events]);
         {{error, Error}, []} ->
-            _ = lager:error("legacy events conversion failed: ~p", [Error]),
             error(Error)
     end;
 convert_v2_events([], _, Events) ->
