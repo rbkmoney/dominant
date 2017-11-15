@@ -40,7 +40,7 @@
     {ok, snapshot()} |
     {error, version_not_found}.
 
-checkout({head, #'Head'{}} = Ref, Context) ->
+checkout({head, #'Head'{}}, Context) ->
     HistoryRange = #mg_stateproc_HistoryRange{
         'after' = undefined,
         'limit' = ?BASE,
@@ -50,9 +50,9 @@ checkout({head, #'Head'{}} = Ref, Context) ->
         #st{} = St ->
             squash_state(St);
         {error, version_not_found} ->
-            dmt_api_repository_v2:checkout(Ref, Context)
+            {error, version_not_found}
     end;
-checkout({version, V} = Ref, Context) ->
+checkout({version, V}, Context) ->
     BaseV = get_base_version(V),
     HistoryRange = #mg_stateproc_HistoryRange{
         'after' = get_event_id(BaseV),
@@ -70,7 +70,7 @@ checkout({version, V} = Ref, Context) ->
                     Error
             end;
         {error, version_not_found} ->
-            dmt_api_repository_v2:checkout(Ref, Context)
+            {error, version_not_found}
     end.
 
 -spec pull(dmt_api_repository:version(), context()) ->
@@ -83,7 +83,7 @@ pull(Version, Context) ->
         #st{history = History} ->
             {ok, History};
         {error, version_not_found} ->
-            dmt_api_repository_v2:pull(Version, Context)
+            {error, version_not_found}
     end.
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
