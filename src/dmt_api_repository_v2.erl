@@ -51,16 +51,11 @@ checkout({head, #'Head'{}}, Context) ->
             {error, version_not_found}
     end;
 checkout({version, Version}, Context) ->
-    case dmt_api_cache:get(Version) of
+    case try_get_snapshot(Version, Context) of
         {ok, Snapshot} ->
-            {ok, Snapshot};
+            {ok, dmt_api_cache:put(Snapshot)};
         {error, version_not_found} ->
-            case try_get_snapshot(Version, Context) of
-                {ok, Snapshot} ->
-                    {ok, dmt_api_cache:put(Snapshot)};
-                {error, version_not_found} ->
-                    {error, version_not_found}
-            end
+            {error, version_not_found}
     end.
 
 -spec pull(dmt_api_repository:version(), context()) ->
