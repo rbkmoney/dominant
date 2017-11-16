@@ -32,7 +32,8 @@
     {objects_not_exist, [{object_ref(), [object_ref()]}]}.
 
 -callback checkout(ref(), context()) ->
-    {ok, snapshot()} |
+    % TODO this was made due to dialyzer warning, can't find the way to fix it
+    {ok, term()} |
     {error, version_not_found}.
 -callback pull(version(), context()) ->
     {ok, history()} |
