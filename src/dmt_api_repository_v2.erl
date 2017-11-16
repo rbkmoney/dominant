@@ -51,9 +51,16 @@ checkout({head, #'Head'{}}, Context) ->
             {error, version_not_found}
     end;
 checkout({version, Version}, Context) ->
-    case try_get_snapshot(Version, Context) of
-        {ok, Snapshot} ->
-            {ok, dmt_api_cache:put(Snapshot)};
+    ClosestSnapshot = ensure_snapshot(dmt_api_cache:get_closest(Version)),
+    From = min(Version, ClosestSnapshot#'Snapshot'.version),
+    Limit = abs(Version - ClosestSnapshot#'Snapshot'.version),
+    case get_history(From, Limit, Context) of
+        {ok, History} when map_size(History) =:= Limit ->
+            %% TO DO: Need to fix dmt_history:travel. It can return {error, ...}
+            {ok, Snapshot} = dmt_history:travel(Version, History, ClosestSnapshot),
+            {ok, Snapshot};
+        {ok, #{}} ->
+            {error, version_not_found};
         {error, version_not_found} ->
             {error, version_not_found}
     end.
@@ -172,24 +179,6 @@ get_history_by_range(HistoryRange, Context) ->
             ok = dmt_api_automaton_client:start(?NS, ?ID, Context),
             get_history_by_range(HistoryRange, Context);
         {error, #'mg_stateproc_EventNotFound'{}} ->
-            {error, version_not_found}
-    end.
-
--spec try_get_snapshot(dmt_api_repository:version(), context()) ->
-    {ok, snapshot()} | {error, version_not_found}.
-
-try_get_snapshot(Version, Context) ->
-    ClosestSnapshot = ensure_snapshot(dmt_api_cache:get_closest(Version)),
-    From = min(Version, ClosestSnapshot#'Snapshot'.version),
-    Limit = abs(Version - ClosestSnapshot#'Snapshot'.version),
-    case get_history(From, Limit, Context) of
-        {ok, History} when map_size(History) =:= Limit ->
-            %% TO DO: Need to fix dmt_history:travel. It can return {error, ...}
-            {ok, Snapshot} = dmt_history:travel(Version, History, ClosestSnapshot),
-            {ok, Snapshot};
-        {ok, #{}} ->
-            {error, version_not_found};
-        {error, version_not_found} ->
             {error, version_not_found}
     end.
 
