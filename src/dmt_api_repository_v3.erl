@@ -191,16 +191,17 @@ read_history(Events) ->
 read_history([], St) ->
     St;
 read_history([#mg_stateproc_Event{id = Id, event_payload = EventData} | Rest], #st{history = History} = St) ->
-    case decode_event(EventData) of
-        {commit, Commit} ->
-            read_history(
-                Rest,
-                St#st{history = History#{Id => Commit}}
-            );
-        {snapshot, Snapshot, Commit} ->
+    {commit, Commit, Meta} = decode_event(EventData),
+    case Meta of
+        #{snapshot := Snapshot} ->
             read_history(
                 Rest,
                 St#st{snapshot = Snapshot, history = History#{Id => Commit}}
+            );
+        #{} ->
+            read_history(
+                Rest,
+                St#st{history = History#{Id => Commit}}
             )
     end.
 
@@ -220,7 +221,7 @@ get_events_from_legacy(Context) ->
     convert_v2_events(History, #'Snapshot'{version = 0, domain = dmt_domain:new()}, []).
 
 convert_v2_events([{Version1, Commit} | Others], #'Snapshot'{version = Version0} = Snapshot0, Events)
-    when Version0 + 1 == Version1
+    when Version0 + 1 == Version1 % paranoidal check :)
 ->
     case apply_commit(Snapshot0, Commit) of
         {{ok, Snapshot}, [Event]} ->
@@ -232,24 +233,29 @@ convert_v2_events([], _, Events) ->
     lists:reverse(Events).
 
 make_event(Snapshot, Commit) ->
-    case (Snapshot#'Snapshot'.version) rem ?BASE of
+    Meta = case (Snapshot#'Snapshot'.version) rem ?BASE of
         0 ->
-            {snapshot, Snapshot, Commit};
+            #{snapshot => Snapshot};
         _ ->
-            {commit, Commit}
-    end.
+            #{}
+    end,
+    {commit, Commit, Meta}.
 
-encode_event({commit, Commit}) ->
-    {arr, [{str, <<"commit">>}, encode(commit, Commit)]};
+encode_event({commit, Commit, Meta}) ->
+    {arr, [{str, <<"commit">>}, encode(commit, Commit), encode_commit_meta(Meta)]}.
 
-encode_event({snapshot, Snapshot, Commit}) ->
-    {arr, [{str, <<"snapshot">>}, encode(snapshot, Snapshot), encode(commit, Commit)]}.
+encode_commit_meta(#{snapshot := Snapshot}) ->
+    {obj, #{{str, <<"snapshot">>} => encode(snapshot, Snapshot)}};
+encode_commit_meta(#{}) ->
+    {obj, #{}}.
 
-decode_event({arr, [{str, <<"commit">>}, Commit]}) ->
-    {commit, decode(commit, Commit)};
+decode_event({arr, [{str, <<"commit">>}, Commit, Meta]}) ->
+    {commit, decode(commit, Commit), decode_commit_meta(Meta)}.
 
-decode_event({arr, [{str, <<"snapshot">>}, Snapshot, Commit]}) ->
-    {snapshot, decode(snapshot, Snapshot), decode(commit, Commit)}.
+decode_commit_meta({obj, #{{str, <<"snapshot">>} := Snapshot}}) ->
+    #{snapshot => decode(snapshot, Snapshot)};
+decode_commit_meta({obj, #{}}) ->
+    #{}.
 
 %%
 
