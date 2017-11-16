@@ -163,7 +163,7 @@ handle_call({commit, Version, Commit}, St, _Context) ->
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
             apply_commit(Snapshot, Commit);
         {ok, _} ->
-            {{error, version_not_found}, []}
+            {{error, head_mismatch}, []}
     end.
 
 apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{ops = Ops} = Commit) ->

@@ -133,7 +133,7 @@ handle_call({commit, Version, Commit}, History, _Context) ->
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
             apply_commit(Snapshot, Commit);
         {ok, _} ->
-            {{error, version_not_found}, []};
+            {{error, head_mismatch}, []};
         {error, _} = Error ->
             {Error, []}
     end.
