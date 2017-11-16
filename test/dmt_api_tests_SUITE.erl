@@ -27,7 +27,7 @@
 -spec all() -> [{group, group_name()}].
 all() ->
     [
-        % {group, basic_lifecycle_v2},
+        {group, basic_lifecycle_v2},
         {group, basic_lifecycle_v3}
     ].
 
@@ -94,9 +94,9 @@ start_with_repository(Repository) ->
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().
-end_per_group(basic_lifecycle_v1, C) ->
-    genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(basic_lifecycle_v2, C) ->
+    genlib_app:stop_unload_applications(?config(group_apps, C));
+end_per_group(basic_lifecycle_v3, C) ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
     ok.

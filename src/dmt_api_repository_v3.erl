@@ -65,9 +65,7 @@ checkout({version, V}, Context) ->
                 {ok, #'Snapshot'{version = V}} = Result ->
                     Result;
                 {ok, _} ->
-                    {error, version_not_found};
-                Error ->
-                    Error
+                    {error, version_not_found}
             end;
         {error, version_not_found} ->
             {error, version_not_found}
@@ -165,9 +163,7 @@ handle_call({commit, Version, Commit}, St, _Context) ->
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
             apply_commit(Snapshot, Commit);
         {ok, _} ->
-            {{error, version_not_found}, []};
-        {error, _} = Error ->
-            {Error, []}
+            {{error, version_not_found}, []}
     end.
 
 apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{ops = Ops} = Commit) ->
