@@ -63,4 +63,4 @@ get_handler_spec(state_processor) ->
     }}.
 
 get_repository_mod() ->
-    genlib_app:env(?MODULE, repository, dmt_api_repository_v2).
+    genlib_app:env(?MODULE, repository, dmt_api_repository_v3).

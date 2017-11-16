@@ -27,18 +27,18 @@
 -spec all() -> [{group, group_name()}].
 all() ->
     [
-        {group, basic_lifecycle_v1},
-        {group, basic_lifecycle_v2}
+        {group, basic_lifecycle_v2},
+        {group, basic_lifecycle_v3}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
-        {basic_lifecycle_v1, [sequence], [
+        {basic_lifecycle_v2, [sequence], [
             pull_commit,
             {group, basic_lifecycle}
         ]},
-        {basic_lifecycle_v2, [sequence], [
+        {basic_lifecycle_v3, [sequence], [
             pull_commit,
             {group, basic_lifecycle}
         ]},
@@ -79,10 +79,10 @@ end_per_suite(C) ->
     genlib_app:stop_unload_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(basic_lifecycle_v1, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v1)} | C];
 init_per_group(basic_lifecycle_v2, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v2)} | C];
+init_per_group(basic_lifecycle_v3, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v3)} | C];
 init_per_group(_, C) ->
     C.
 
@@ -90,16 +90,13 @@ start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
         {repository, Repository},
         {automaton_service_url, "http://machinegun:8022/v1/automaton"},
-        {max_cache_size, #{
-            elements => 1,
-            memory => 2048 % 2Kb
-        }}
+        {max_cache_size, 2048} % 2Kb
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().
-end_per_group(basic_lifecycle_v1, C) ->
-    genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(basic_lifecycle_v2, C) ->
+    genlib_app:stop_unload_applications(?config(group_apps, C));
+end_per_group(basic_lifecycle_v3, C) ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
     ok.

@@ -157,11 +157,9 @@ get_closest_snapshot(Prev, Next, Version) ->
     end.
 
 cleanup() ->
-    {Elements, Memory} = get_cache_size(),
-    CacheLimits = genlib_app:env(dmt_api, max_cache_size),
-    MaxElements = genlib_map:get(elements, CacheLimits, 20),
-    MaxMemory = genlib_map:get(memory, CacheLimits, 52428800), % 50Mb by default
-    case Elements > MaxElements orelse Memory > MaxMemory of
+    CacheSize = get_cache_size(),
+    CacheLimit = genlib_app:env(dmt_api, max_cache_size, 52428800), % 50Mb by default
+    case CacheSize > CacheLimit of
         true ->
             ok = remove_earliest(),
             cleanup();
@@ -170,9 +168,7 @@ cleanup() ->
     end.
 
 get_cache_size() ->
-    WordSize = erlang:system_info(wordsize),
-    Info = ets:info(?TABLE),
-    {proplists:get_value(size, Info), WordSize * proplists:get_value(memory, Info)}.
+    erlang:system_info(wordsize) * ets:info(?TABLE, memory).
 
 remove_earliest() ->
     % Naive implementation, but probably good enough
