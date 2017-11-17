@@ -60,7 +60,7 @@ init_per_suite(C) ->
             {error_logger_hwm, 600},
             {suppress_application_start_stop, true},
             {handlers, [
-                {lager_common_test_backend, warning}
+                {lager_common_test_backend, [warning, {lager_logstash_formatter, []}]}
             ]}
         ]) ++ genlib_app:start_application_with(scoper, [
             {storage, scoper_storage_lager}
