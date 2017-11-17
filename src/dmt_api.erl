@@ -30,7 +30,7 @@ init(_) ->
             ip            => IP,
             port          => genlib_app:env(?MODULE, port, 8022),
             net_opts      => genlib_app:env(?MODULE, net_opts, []),
-            event_handler => woody_event_handler_default,
+            event_handler => scoper_woody_event_handler,
             handlers      => [
                 get_handler_spec(repository),
                 get_handler_spec(repository_client),
@@ -63,4 +63,4 @@ get_handler_spec(state_processor) ->
     }}.
 
 get_repository_mod() ->
-    genlib_app:env(?MODULE, repository, dmt_api_repository_v2).
+    genlib_app:env(?MODULE, repository, dmt_api_repository_v3).
