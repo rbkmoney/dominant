@@ -10,6 +10,7 @@
         scoper,
         woody,
         dmsl,
+        mg_proto,
         dmt_core
     ]},
     {mod, {dmt_api, []}},
