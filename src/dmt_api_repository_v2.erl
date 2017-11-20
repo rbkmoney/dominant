@@ -176,8 +176,7 @@ get_history_by_range(HistoryRange, Context) ->
         {ok, History} ->
             read_history(History);
         {error, #'mg_stateproc_MachineNotFound'{}} ->
-            ok = dmt_api_automaton_client:start(?NS, ?ID, Context),
-            get_history_by_range(HistoryRange, Context);
+            #{};
         {error, #'mg_stateproc_EventNotFound'{}} ->
             {error, version_not_found}
     end.
