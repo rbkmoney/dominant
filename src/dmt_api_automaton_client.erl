@@ -23,7 +23,7 @@
     response() |
     no_return().
 call(NS, ID, Args, Context) ->
-    call(NS, ID, #'HistoryRange'{}, Args, Context).
+    call(NS, ID, #'mg_stateproc_HistoryRange'{}, Args, Context).
 
 -spec call(ns(), id(), history_range(), args(), context()) ->
     response() |
@@ -33,7 +33,7 @@ call(NS, ID, HistoryRange, Args, Context) ->
     case issue_rpc('Call', [Descriptor, Args], Context) of
         {ok, Result} ->
             Result;
-        {error, #'MachineNotFound'{}} ->
+        {error, #'mg_stateproc_MachineNotFound'{}} ->
             ok = start(NS, ID, Context),
             call(NS, ID, Args, Context)
     end.
@@ -48,7 +48,7 @@ call(NS, ID, HistoryRange, Args, Context) ->
 get_history(NS, ID, HistoryRange, Context) ->
     Descriptor = construct_descriptor(NS, ID, HistoryRange),
     case issue_rpc('GetMachine', [Descriptor], Context) of
-        {ok, #'Machine'{history = History}} ->
+        {ok, #'mg_stateproc_Machine'{history = History}} ->
             {ok, History};
         {error, _} = Error ->
             Error
@@ -57,17 +57,17 @@ get_history(NS, ID, HistoryRange, Context) ->
 -spec start(ns(), id(), context()) ->
     ok | no_return().
 start(NS, ID, Context) ->
-    case issue_rpc('Start', [NS, ID, {nl, #msgpack_Nil{}}], Context) of
+    case issue_rpc('Start', [NS, ID, {nl, #mg_msgpack_Nil{}}], Context) of
         {ok, _} ->
             ok;
-        {error, #'MachineAlreadyExists'{}} ->
+        {error, #'mg_stateproc_MachineAlreadyExists'{}} ->
             ok
     end.
 
 -spec construct_descriptor(ns(), id(), history_range()) ->
     descriptor().
 construct_descriptor(NS, ID, HistoryRange) ->
-    #'MachineDescriptor'{
+    #'mg_stateproc_MachineDescriptor'{
         ns = NS,
         ref = {id, ID},
         range = HistoryRange
@@ -78,13 +78,19 @@ construct_descriptor(NS, ID, HistoryRange) ->
 issue_rpc(Method, Args, Context) ->
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
-    Opts = #{url => URL, event_handler => {woody_event_handler_default, undefined}},
+    Opts = #{
+        url => URL,
+        event_handler => scoper_woody_event_handler,
+        transport_opts => [
+            {recv_timeout, 60000}
+        ]
+    },
     case woody_client:call(Request, Opts, Context) of
         {ok, _} = Ok ->
             Ok;
-        {exception, #'NamespaceNotFound'{}} ->
+        {exception, #'mg_stateproc_NamespaceNotFound'{}} ->
             error(namespace_not_found);
-        {exception, #'MachineFailed'{}} ->
+        {exception, #'mg_stateproc_MachineFailed'{}} ->
             error(machine_failed);
         {exception, Exception} ->
             {error, Exception}
