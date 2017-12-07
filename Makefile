@@ -19,7 +19,7 @@ BASE_IMAGE_TAG := 13454a94990acb72f753623ec13599a9f6f4f852
 ## Variables required for utils_container.mk
 
 # Build image tag to be used
-BUILD_IMAGE_TAG := 4799280a02cb73761a3ba3641285aac8ec4ec482
+BUILD_IMAGE_TAG := 317d28640a5dd2ec6e732d81283628d8ad3f3f52
 
 BASE_IMAGE := "$(ORG_NAME)/build:latest"
 RELNAME := dominant
