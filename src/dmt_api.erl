@@ -24,6 +24,7 @@ stop(_State) ->
 
 init(_) ->
     {ok, IP} = inet:parse_address(genlib_app:env(?MODULE, ip, "::")),
+    HealthCheckers = genlib_app:env(?MODULE, health_checkers, []),
     API = woody_server:child_spec(
         ?MODULE,
         #{
@@ -35,6 +36,9 @@ init(_) ->
                 get_handler_spec(repository),
                 get_handler_spec(repository_client),
                 get_handler_spec(state_processor)
+            ],
+            additional_routes => [
+                erl_health_handle:get_route(HealthCheckers)
             ]
         }
     ),
