@@ -11,7 +11,8 @@
         woody,
         dmsl,
         dmt_core,
-        mg_proto
+        mg_proto,
+        erl_health
     ]},
     {mod, {dmt_api, []}},
     {env, []}
