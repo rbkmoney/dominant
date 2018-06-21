@@ -27,18 +27,18 @@
 -spec all() -> [{group, group_name()}].
 all() ->
     [
-        {group, basic_lifecycle_v2},
-        {group, basic_lifecycle_v3}
+        {group, basic_lifecycle_v3},
+        {group, basic_lifecycle_v4}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
-        {basic_lifecycle_v2, [sequence], [
+        {basic_lifecycle_v3, [sequence], [
             pull_commit,
             {group, basic_lifecycle}
         ]},
-        {basic_lifecycle_v3, [sequence], [
+        {basic_lifecycle_v4, [sequence], [
             pull_commit,
             {group, basic_lifecycle}
         ]},
@@ -82,10 +82,10 @@ end_per_suite(C) ->
     genlib_app:stop_unload_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(basic_lifecycle_v2, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v2)} | C];
 init_per_group(basic_lifecycle_v3, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v3)} | C];
+init_per_group(basic_lifecycle_v4, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
 init_per_group(_, C) ->
     C.
 
@@ -97,9 +97,9 @@ start_with_repository(Repository) ->
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().
-end_per_group(basic_lifecycle_v2, C) ->
-    genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(basic_lifecycle_v3, C) ->
+    genlib_app:stop_unload_applications(?config(group_apps, C));
+end_per_group(basic_lifecycle_v4, C) ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
     ok.

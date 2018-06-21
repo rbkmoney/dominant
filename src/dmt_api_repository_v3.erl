@@ -130,25 +130,18 @@ handle_function(
     [#mg_stateproc_SignalArgs{
         signal = {init, #mg_stateproc_InitSignal{}}
     }],
-    Context,
+    _Context,
     _Opts
 ) ->
-    %%% TODO It's generally prettier to make up a _migrating_ repository which is the special repository
-    %%%      module designed to facilitate migrations between some preconfigured 'old' repository backend
-    %%%      and some 'new' one. The migration process could be triggered by the very first mutating
-    %%%      operation (e.g. commit) going into this backend for example.
-    Events = get_events_from_legacy(Context),
-    {ok, construct_signal_result(Events)}.
+    % No migration here, just start empty machine
+    {ok, #mg_stateproc_SignalResult{
+        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = []},
+        action = #mg_stateproc_ComplexAction{}
+    }}.
 
 construct_call_result(Response, Events) ->
     #mg_stateproc_CallResult{
         response = encode_call_result(Response),
-        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
-        action = #mg_stateproc_ComplexAction{}
-    }.
-
-construct_signal_result(Events) ->
-    #mg_stateproc_SignalResult{
         change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
         action = #mg_stateproc_ComplexAction{}
     }.
@@ -214,23 +207,6 @@ squash_state(#st{snapshot = BaseSnapshot, history = History}) ->
     end.
 
 %%
-
-get_events_from_legacy(Context) ->
-    LegacyHistory = dmt_api_repository_v2:get_history(undefined, Context),
-    History = lists:keysort(1, maps:to_list(LegacyHistory)),
-    convert_v2_events(History, #'Snapshot'{version = 0, domain = dmt_domain:new()}, []).
-
-convert_v2_events([{Version1, Commit} | Others], #'Snapshot'{version = Version0} = Snapshot0, Events)
-    when Version0 + 1 == Version1 % paranoidal check :)
-->
-    case apply_commit(Snapshot0, Commit) of
-        {{ok, Snapshot}, [Event]} ->
-            convert_v2_events(Others, Snapshot, [Event | Events]);
-        {{error, Error}, []} ->
-            error(Error)
-    end;
-convert_v2_events([], _, Events) ->
-    lists:reverse(Events).
 
 make_event(Snapshot, Commit) ->
     Meta = case (Snapshot#'Snapshot'.version) rem ?BASE of
