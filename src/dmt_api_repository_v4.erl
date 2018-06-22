@@ -7,6 +7,13 @@
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary/v4">>).
 -define(BASE, 10).
+-define(DEFAULT_MIGRATION_SETTINGS, #{
+    enable  => false,
+    timer   => {timeout, 180},
+    timeout => 360, % lagre enought, that we can process butch of old events
+    limit   => 20   % 2xBASE, maybe even less
+}).
+
 
 %% API
 
@@ -133,17 +140,42 @@ handle_function(
     _Context,
     _Opts
 ) ->
-    %%% TODO start migration here by setting timer up
-    {ok, #mg_stateproc_SignalResult{
-        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = []},
-        action = #mg_stateproc_ComplexAction{}
-    }}.
+    Action = case is_migration_enabled() of
+        true ->
+            start_migration();
+        false ->
+            #mg_stateproc_ComplexAction{}
+    end,
+    {ok, construct_signal_result(Action, [])};
+handle_function(
+    'ProcessSignal',
+    [#mg_stateproc_SignalArgs{
+        signal = {timeout, #mg_stateproc_TimeoutSignal{}},
+        machine = Machine
+    }],
+    Context,
+    _Opts
+) ->
+    %% at this point, we use timeouts only for migration
+    {Action, Events} = case is_migration_enabled() of
+        true ->
+            continue_migration(read_history(Machine), Context);
+        false ->
+            {#mg_stateproc_ComplexAction{}, []}
+    end,
+    {ok, construct_signal_result(Action, Events)}.
 
 construct_call_result(Response, Events) ->
     #mg_stateproc_CallResult{
         response = encode_call_result(Response),
         change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
         action = #mg_stateproc_ComplexAction{}
+    }.
+
+construct_signal_result(Action, Events) ->
+    #mg_stateproc_SignalResult{
+        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
+        action = Action
     }.
 
 encode_events(Events) ->
@@ -167,8 +199,6 @@ apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{op
         {error, Reason} ->
             {{error, {operation_conflict, Reason}}, []}
     end.
-
-%%
 
 -spec read_history(machine() | history()) ->
     st().
@@ -273,3 +303,59 @@ get_event_id(ID) when is_integer(ID) andalso ID > 0 ->
     ID;
 get_event_id(0) ->
     undefined.
+
+%% Migration
+
+is_migration_enabled() ->
+    MigrationSettings = get_migration_settings(),
+    maps:get(enable, MigrationSettings).
+
+get_migration_settings() ->
+    genlib_app:env(dmt_api, migration, ?DEFAULT_MIGRATION_SETTINGS).
+
+start_migration() ->
+    %%% start migration by setting timer up
+    _ = lager:info(<<"Migration started~n">>, []),
+    construct_set_timer_action().
+
+continue_migration(St, Context) ->
+    %% TODO we dont need squash_state here, we just need last version from history
+    {ok, #'Snapshot'{version = Version}} = squash_state(St),
+    EventID = get_event_id(Version),
+    Limit = maps:get(limit, get_migration_settings()),
+    _ = lager:info(<<"Migrating events from ~i to ~i~n">>, [EventID, EventID + Limit]),
+    try dmt_api_repository_v3:get_events(EventID, Limit, Context) of
+        [] ->
+            _ = lager:info(<<"Migration finished~n">>, []),
+            {construct_unset_timer_action(), []};
+        Events ->
+            {construct_set_timer_action(), Events}
+    catch
+        Type:Error ->
+            _ = lager:error(
+                <<"Migration error: ~p, stacktrace: ~p~n">>,
+                [{Type, Error}, erlang:get_stacktrace()]
+            ),
+            {construct_set_timer_action(), []}
+    end.
+
+construct_set_timer_action() ->
+    MigrationSettings = get_migration_settings(),
+    #mg_stateproc_ComplexAction{
+        timer = {set_timer, #mg_stateproc_SetTimerAction{
+            timer = maps:get(timer, MigrationSettings),
+            range = #mg_stateproc_HistoryRange{
+                'after' = undefined,
+                'limit' = ?BASE,
+                'direction' = backward
+            },
+            timeout = maps:get(timeout, MigrationSettings)
+        }}
+    }.
+
+construct_unset_timer_action() ->
+    #mg_stateproc_ComplexAction{
+        timer = {unset_timer, #mg_stateproc_UnsetTimerAction{}}
+    }.
+
+%%
