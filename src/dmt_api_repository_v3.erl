@@ -17,9 +17,10 @@
 
 %% State processor
 
--behaviour(woody_server_thrift_handler).
+-behaviour(dmt_api_automaton_handler).
 
--export([handle_function/4]).
+-export([process_call/3]).
+-export([process_signal/3]).
 
 %%
 -record(st, {
@@ -30,8 +31,8 @@
 -type st()              :: #st{}.
 -type context()         :: woody_context:ctx().
 -type history_range()   :: mg_proto_state_processing_thrift:'HistoryRange'().
--type machine()         :: mg_proto_state_processing_thrift:'Machine'().
 -type history()         :: mg_proto_state_processing_thrift:'History'().
+-type machine()         :: dmt_api_automaton_handler:machine().
 
 -type ref()             :: dmsl_domain_config_thrift:'Reference'().
 -type snapshot()        :: dmt_api_repository:snapshot().
@@ -133,35 +134,20 @@ get_events(EventID, Limit, Context) ->
     end.
 %%
 
--define(NIL, {nl, #mg_msgpack_Nil{}}).
+-spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
+    {dmt_api_automaton_handler:response(), dmt_api_automaton_handler:events()} | no_return().
 
--spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
-    {ok, woody:result()} | no_return().
+process_call(Call, Machine, Context) ->
+    Args = decode_call(Call),
+    {Result, Events} = handle_call(Args, read_history(Machine), Context),
+    {encode_call_result(Result), encode_events(Events)}.
 
-handle_function('ProcessCall', [#mg_stateproc_CallArgs{arg = Payload, machine = Machine}], Context, _Opts) ->
-    Call = decode_call(Payload),
-    {Result, Events} = handle_call(Call, read_history(Machine), Context),
-    {ok, construct_call_result(Result, Events)};
-handle_function(
-    'ProcessSignal',
-    [#mg_stateproc_SignalArgs{
-        signal = {init, #mg_stateproc_InitSignal{}}
-    }],
-    _Context,
-    _Opts
-) ->
+-spec process_signal(dmt_api_automaton_handler:signal(), machine(), context()) ->
+    {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
+
+process_signal({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
     % No migration here, just start empty machine
-    {ok, #mg_stateproc_SignalResult{
-        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = []},
-        action = #mg_stateproc_ComplexAction{}
-    }}.
-
-construct_call_result(Response, Events) ->
-    #mg_stateproc_CallResult{
-        response = encode_call_result(Response),
-        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
-        action = #mg_stateproc_ComplexAction{}
-    }.
+    {#mg_stateproc_ComplexAction{}, []}.
 
 encode_events(Events) ->
     [encode_event(E) || E <- Events].

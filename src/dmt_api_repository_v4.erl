@@ -23,9 +23,10 @@
 
 %% State processor
 
--behaviour(woody_server_thrift_handler).
+-behaviour(dmt_api_automaton_handler).
 
--export([handle_function/4]).
+-export([process_call/3]).
+-export([process_signal/3]).
 
 %%
 -record(st, {
@@ -123,39 +124,26 @@ get_history_by_range(HistoryRange, Context) ->
 
 %%
 
--define(NIL, {nl, #mg_msgpack_Nil{}}).
+-spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
+    {dmt_api_automaton_handler:response(), dmt_api_automaton_handler:events()} | no_return().
 
--spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
-    {ok, woody:result()} | no_return().
+process_call(Call, Machine, Context) ->
+    Args = decode_call(Call),
+    {Result, Events} = handle_call(Args, read_history(Machine), Context),
+    {encode_call_result(Result), encode_events(Events)}.
 
-handle_function('ProcessCall', [#mg_stateproc_CallArgs{arg = Payload, machine = Machine}], Context, _Opts) ->
-    Call = decode_call(Payload),
-    {Result, Events} = handle_call(Call, read_history(Machine), Context),
-    {ok, construct_call_result(Result, Events)};
-handle_function(
-    'ProcessSignal',
-    [#mg_stateproc_SignalArgs{
-        signal = {init, #mg_stateproc_InitSignal{}}
-    }],
-    _Context,
-    _Opts
-) ->
+-spec process_signal(dmt_api_automaton_handler:signal(), machine(), context()) ->
+    {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
+
+process_signal({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
     Action = case is_migration_enabled() of
         true ->
             start_migration();
         false ->
             #mg_stateproc_ComplexAction{}
     end,
-    {ok, construct_signal_result(Action, [])};
-handle_function(
-    'ProcessSignal',
-    [#mg_stateproc_SignalArgs{
-        signal = {timeout, #mg_stateproc_TimeoutSignal{}},
-        machine = Machine
-    }],
-    Context,
-    _Opts
-) ->
+    {Action, []};
+process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, Machine, Context) ->
     %% at this point, we use timeouts only for migration
     {Action, Events} = case is_migration_enabled() of
         true ->
@@ -163,23 +151,7 @@ handle_function(
         false ->
             {#mg_stateproc_ComplexAction{}, []}
     end,
-    {ok, construct_signal_result(Action, Events)}.
-
-construct_call_result(Response, Events) ->
-    #mg_stateproc_CallResult{
-        response = encode_call_result(Response),
-        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
-        action = #mg_stateproc_ComplexAction{}
-    }.
-
-construct_signal_result(Action, Events) ->
-    #mg_stateproc_SignalResult{
-        change = #mg_stateproc_MachineStateChange{aux_state = ?NIL, events = encode_events(Events)},
-        action = Action
-    }.
-
-encode_events(Events) ->
-    [encode_event(E) || E <- Events].
+    {Action, encode_events(Events)}.
 
 %%
 
@@ -246,6 +218,9 @@ make_event(Snapshot, Commit) ->
             #{}
     end,
     {commit, Commit, Meta}.
+
+encode_events(Events) ->
+    [encode_event(E) || E <- Events].
 
 encode_event({commit, Commit, Meta}) ->
     {arr, [{str, <<"commit">>}, encode(commit, Commit), encode_commit_meta(Meta)]}.
@@ -323,7 +298,7 @@ continue_migration(St, Context) ->
     {ok, #'Snapshot'{version = Version}} = squash_state(St),
     EventID = get_event_id(Version),
     Limit = maps:get(limit, get_migration_settings()),
-    _ = lager:info(<<"Migrating events from ~i to ~i~n">>, [EventID, EventID + Limit]),
+    _ = lager:info(<<"Migrating events from ~p to ~p~n">>, [Version, Version + Limit]),
     try dmt_api_repository_v3:get_events(EventID, Limit, Context) of
         [] ->
             _ = lager:info(<<"Migration finished~n">>, []),

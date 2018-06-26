@@ -12,6 +12,7 @@
 -export([insert/1]).
 -export([update/1]).
 -export([delete/1]).
+-export([migration_success/1]).
 
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
@@ -28,6 +29,7 @@
 all() ->
     [
         {group, basic_lifecycle_v3},
+        {group, migration_to_v4},
         {group, basic_lifecycle_v4}
     ].
 
@@ -46,6 +48,9 @@ groups() ->
             insert,
             update,
             delete
+        ]},
+        {migration_to_v4, [sequence], [
+            migration_success
         ]}
     ].
 
@@ -54,27 +59,21 @@ groups() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     Apps =
+        genlib_app:start_application(sasl) ++ %% Added this to clean up logs
         genlib_app:start_application_with(lager, [
             {async_threshold, 1},
             {async_threshold_window, 0},
             {error_logger_hwm, 600},
             {suppress_application_start_stop, true},
             {handlers, [
-                {lager_common_test_backend, [warning, {lager_logstash_formatter, []}]}
+                % {lager_common_test_backend, [warning, {lager_logstash_formatter, []}]}
+                {lager_common_test_backend, warning}
             ]}
-        ]) ++ genlib_app:start_application_with(scoper, [
+        ]) ++
+        genlib_app:start_application_with(scoper, [
             {storage, scoper_storage_lager}
-        ]) ++ genlib_app:start_application_with(dmt_client, [
-            {cache_update_interval, 5000}, % milliseconds
-            {max_cache_size, #{
-                elements => 20,
-                memory => 52428800 % 50Mb
-            }},
-            {service_urls, #{
-                'Repository' => <<"dominant:8022/v1/domain/repository">>,
-                'RepositoryClient' => <<"dominant:8022/v1/domain/repository_client">>
-            }}
-        ]),
+        ]) ++
+        start_dmt_client("v1"),
     [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> term().
@@ -86,20 +85,37 @@ init_per_group(basic_lifecycle_v3, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v3)} | C];
 init_per_group(basic_lifecycle_v4, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
+init_per_group(migration_to_v4, C) ->
+    [{group_apps, genlib_app:start_application_with(dmt_api, [
+        {repositories, [
+            {"v1", dmt_api_repository_v3},
+            {"v2", dmt_api_repository_v4}
+        ]},
+        {migration, #{
+            enable  => true,
+            timer   => {timeout, 1},
+            timeout => 360,
+            limit   => 20
+        }},
+        {automaton_service_url, "http://machinegun:8022/v1/automaton"},
+        {max_cache_size, 2048} % 2Kb
+    ])} | C];
 init_per_group(_, C) ->
     C.
 
 start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
-        {repository, Repository},
+        {repositories, [{"v1", Repository}]},
         {automaton_service_url, "http://machinegun:8022/v1/automaton"},
         {max_cache_size, 2048} % 2Kb
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().
-end_per_group(basic_lifecycle_v3, C) ->
-    genlib_app:stop_unload_applications(?config(group_apps, C));
-end_per_group(basic_lifecycle_v4, C) ->
+end_per_group(Group, C) when
+    Group =:= basic_lifecycle_v3 orelse
+    Group =:= basic_lifecycle_v4 orelse
+    Group =:= migration_to_v4
+->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
     ok.
@@ -155,6 +171,33 @@ pull_commit(_C) ->
     Version2 = dmt_client_api:commit(Version1, Commit),
     #{Version2 := Commit} = dmt_client_api:pull(Version1).
 
+-spec migration_success(term()) -> term().
+migration_success(_C) ->
+    #'Snapshot'{version = VersionV3} = dmt_client_api:checkout({head, #'Head'{}}),
+    true = VersionV3 > 0,
+    ok = application:stop(dmt_client),
+    _ = start_dmt_client("v2"),
+    #'Snapshot'{version = 0} = dmt_client_api:checkout({head, #'Head'{}}),
+    VersionV3 = wait_for_migration(VersionV3, 20, 2000),
+    ok = application:stop(dmt_client),
+    _ = start_dmt_client("v1"),
+    ok.
+
+wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
+    timer:sleep(SleepInterval),
+    #'Snapshot'{version = Version} = dmt_client_api:checkout({head, #'Head'{}}),
+    case Version of
+        V ->
+            %% let's check one more time if we can get version higher then V
+            wait_for_migration(V, 0, SleepInterval);
+        _ ->
+            wait_for_migration(V, TriesLeft - 1, SleepInterval)
+    end;
+wait_for_migration(_, 0, SleepInterval) ->
+    timer:sleep(SleepInterval),
+    #'Snapshot'{version = Version} = dmt_client_api:checkout({head, #'Head'{}}),
+    Version.
+
 next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
 
@@ -166,3 +209,16 @@ fixture_domain_object(Ref, Data) ->
 
 fixture_object_ref(Ref) ->
     {category, #domain_CategoryRef{id = Ref}}.
+
+start_dmt_client(ApiVersion) ->
+    genlib_app:start_application_with(dmt_client, [
+        {cache_update_interval, 5000}, % milliseconds
+        {max_cache_size, #{
+            elements => 20,
+            memory => 52428800 % 50Mb
+        }},
+        {service_urls, #{
+            'Repository' => list_to_binary(lists:append(["dominant:8022/", ApiVersion, "/domain/repository"])),
+            'RepositoryClient' => list_to_binary(lists:append(["dominant:8022/", ApiVersion, "/domain/repository_client"]))
+        }}
+    ]).

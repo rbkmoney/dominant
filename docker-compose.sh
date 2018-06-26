@@ -1,8 +1,8 @@
 #!/bin/bash
 cat <<EOF
-version: '2'
-
+version: '2.1'
 services:
+
   ${SERVICE_NAME}:
     image: ${BUILD_IMAGE}
     volumes:
@@ -11,12 +11,17 @@ services:
     working_dir: $PWD
     command: /sbin/init
     depends_on:
-     - machinegun
+      machinegun:
+        condition: service_healthy
 
   machinegun:
-    image: dr.rbkmoney.com/rbkmoney/machinegun:e04e529f4c5682b527d12d73a13a3cf9eb296d4d
+    image: dr.rbkmoney.com/rbkmoney/machinegun:1844dff663c24acdcd32f30ae3ea208f5d05a008
+    command: /opt/machinegun/bin/machinegun foreground
     volumes:
-      - ./test/machinegun/sys.config:/opt/machinegun/releases/0.1.0/sys.config
-    environment:
-      - SERVICE_NAME=machinegun
+      - ./test/machinegun/config.yaml:/opt/machinegun/etc/config.yaml
+    healthcheck:
+      test: "curl http://localhost:8022/"
+      interval: 5s
+      timeout: 1s
+      retries: 20
 EOF
