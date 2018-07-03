@@ -7,7 +7,6 @@
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"migration/v3_to_v4">>).
 -define(DEFAULT_MIGRATION_SETTINGS, #{
-    timer   => {timeout, 0},
     timeout => 360, % lagre enought, that we can process butch of old events
     limit   => 20   % 2xBASE, maybe even less
 }).
@@ -181,7 +180,7 @@ construct_set_timer_action() ->
     MigrationSettings = get_migration_settings(),
     #mg_stateproc_ComplexAction{
         timer = {set_timer, #mg_stateproc_SetTimerAction{
-            timer = maps:get(timer, MigrationSettings),
+            timer = {timeout, 0},
             range = #mg_stateproc_HistoryRange{},
             timeout = maps:get(timeout, MigrationSettings)
         }}

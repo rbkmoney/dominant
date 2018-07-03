@@ -99,8 +99,6 @@ init_per_group(migration_to_v4, C) ->
     [{group_apps, genlib_app:start_application_with(dmt_api, [
         {repository, dmt_api_repository_migration},
         {migration, #{
-            enable  => true,
-            timer   => {timeout, 0},
             timeout => 360,
             limit   => 20
         }},
@@ -182,25 +180,22 @@ pull_commit(_C) ->
 migration_success(_C) ->
     #'Snapshot'{version = VersionV3} = dmt_client_api:checkout({head, #'Head'{}}),
     true = VersionV3 > 0,
-    VersionV4 = wait_for_migration(VersionV3, 20, 10000),
-    VersionV4 = VersionV3 + 1,
-    ok.
+    VersionV4 = wait_for_migration(VersionV3, 20, 1000),
+    VersionV4 = VersionV3 + 1.
 
 wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
-    timer:sleep(SleepInterval),
     ID = next_id(),
     Object = fixture_domain_object(ID, <<"MigrationCommitFixture">>),
     Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
     try
         dmt_client_api:commit(V, Commit)
     catch
-        _Any:_Any ->
+        _Class:_Reason ->
+            timer:sleep(SleepInterval),
             wait_for_migration(V, TriesLeft - 1, SleepInterval)
     end;
-wait_for_migration(_, _, SleepInterval) ->
-    timer:sleep(SleepInterval),
-    #'Snapshot'{version = Version} = dmt_client_api:checkout({head, #'Head'{}}),
-    Version.
+wait_for_migration(_, _, _) ->
+    error(wait_for_migration_failed).
 
 next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
