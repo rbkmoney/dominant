@@ -43,36 +43,30 @@ init(_) ->
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
 get_repository_handlers() ->
-    Repositories = genlib_app:env(?MODULE, repositories, [{"v1", dmt_api_repository_v3}]),
-    Handlers = lists:flatmap(
-        fun({Prefix, Mod}) ->
-            [
-                get_handler_spec(repository, Prefix, Mod),
-                get_handler_spec(repository_client, Prefix, Mod)
-            ]
-        end,
-        Repositories
-    ),
-    [get_handler_spec(state_processor, "v1", dmt_api_automaton_handler) | Handlers].
+    Repository = genlib_app:env(?MODULE, repository, dmt_api_repository_v4),
+    [
+        get_handler_spec(repository, Repository),
+        get_handler_spec(repository_client, Repository),
+        get_handler_spec(state_processor, Repository)
+    ].
 
--spec get_handler_spec(Which, Prefix, Mod) -> {Path, {woody:service(), woody:handler(module())}} when
+-spec get_handler_spec(Which, Mod) -> {Path, {woody:service(), woody:handler(module())}} when
     Which   :: repository | repository_client | state_processor,
-    Prefix  :: iodata(),
     Mod     :: module(),
     Path    :: iodata().
 
-get_handler_spec(repository, Prefix, Mod) ->
-    {lists:append(["/", Prefix, "/domain/repository"]), {
+get_handler_spec(repository, Mod) ->
+    {"/v1/domain/repository", {
         {dmsl_domain_config_thrift, 'Repository'},
         {dmt_api_repository_handler, Mod}
     }};
-get_handler_spec(repository_client, Prefix, Mod) ->
-    {lists:append(["/", Prefix, "/domain/repository_client"]), {
+get_handler_spec(repository_client, Mod) ->
+    {"/v1/domain/repository_client", {
         {dmsl_domain_config_thrift, 'RepositoryClient'},
         {dmt_api_repository_client_handler, Mod}
     }};
-get_handler_spec(state_processor, Prefix, Mod) ->
-    {lists:append(["/", Prefix, "/stateproc"]), {
+get_handler_spec(state_processor, Mod) ->
+    {"/v1/stateproc", {
         {mg_proto_state_processing_thrift, 'Processor'},
-        Mod
+        {dmt_api_automaton_handler, Mod}
     }}.

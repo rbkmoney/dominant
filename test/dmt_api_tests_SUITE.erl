@@ -73,7 +73,17 @@ init_per_suite(C) ->
         genlib_app:start_application_with(scoper, [
             {storage, scoper_storage_lager}
         ]) ++
-        start_dmt_client("v1"),
+        genlib_app:start_application_with(dmt_client, [
+            {cache_update_interval, 5000}, % milliseconds
+            {max_cache_size, #{
+                elements => 20,
+                memory => 52428800 % 50Mb
+            }},
+            {service_urls, #{
+                'Repository' => <<"dominant:8022/v1/domain/repository">>,
+                'RepositoryClient' => <<"dominant:8022/v1/domain/repository_client">>
+            }}
+        ]),
     [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> term().
@@ -87,13 +97,10 @@ init_per_group(basic_lifecycle_v4, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
 init_per_group(migration_to_v4, C) ->
     [{group_apps, genlib_app:start_application_with(dmt_api, [
-        {repositories, [
-            {"v1", dmt_api_repository_v3},
-            {"v2", dmt_api_repository_v4}
-        ]},
+        {repository, dmt_api_repository_migration},
         {migration, #{
             enable  => true,
-            timer   => {timeout, 1},
+            timer   => {timeout, 0},
             timeout => 360,
             limit   => 20
         }},
@@ -105,7 +112,7 @@ init_per_group(_, C) ->
 
 start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
-        {repositories, [{"v1", Repository}]},
+        {repository, Repository},
         {automaton_service_url, "http://machinegun:8022/v1/automaton"},
         {max_cache_size, 2048} % 2Kb
     ]).
@@ -175,25 +182,22 @@ pull_commit(_C) ->
 migration_success(_C) ->
     #'Snapshot'{version = VersionV3} = dmt_client_api:checkout({head, #'Head'{}}),
     true = VersionV3 > 0,
-    ok = application:stop(dmt_client),
-    _ = start_dmt_client("v2"),
-    #'Snapshot'{version = 0} = dmt_client_api:checkout({head, #'Head'{}}),
-    VersionV3 = wait_for_migration(VersionV3, 20, 2000),
-    ok = application:stop(dmt_client),
-    _ = start_dmt_client("v1"),
+    VersionV4 = wait_for_migration(VersionV3, 20, 10000),
+    VersionV4 = VersionV3 + 1,
     ok.
 
 wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
     timer:sleep(SleepInterval),
-    #'Snapshot'{version = Version} = dmt_client_api:checkout({head, #'Head'{}}),
-    case Version of
-        V ->
-            %% let's check one more time if we can get version higher then V
-            wait_for_migration(V, 0, SleepInterval);
-        _ ->
+    ID = next_id(),
+    Object = fixture_domain_object(ID, <<"MigrationCommitFixture">>),
+    Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
+    try
+        dmt_client_api:commit(V, Commit)
+    catch
+        _Any:_Any ->
             wait_for_migration(V, TriesLeft - 1, SleepInterval)
     end;
-wait_for_migration(_, 0, SleepInterval) ->
+wait_for_migration(_, _, SleepInterval) ->
     timer:sleep(SleepInterval),
     #'Snapshot'{version = Version} = dmt_client_api:checkout({head, #'Head'{}}),
     Version.
@@ -210,15 +214,3 @@ fixture_domain_object(Ref, Data) ->
 fixture_object_ref(Ref) ->
     {category, #domain_CategoryRef{id = Ref}}.
 
-start_dmt_client(ApiVersion) ->
-    genlib_app:start_application_with(dmt_client, [
-        {cache_update_interval, 5000}, % milliseconds
-        {max_cache_size, #{
-            elements => 20,
-            memory => 52428800 % 50Mb
-        }},
-        {service_urls, #{
-            'Repository' => list_to_binary(lists:append(["dominant:8022/", ApiVersion, "/domain/repository"])),
-            'RepositoryClient' => list_to_binary(lists:append(["dominant:8022/", ApiVersion, "/domain/repository_client"]))
-        }}
-    ]).

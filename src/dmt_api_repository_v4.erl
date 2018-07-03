@@ -7,12 +7,6 @@
 -define(NS  , <<"domain-config">>).
 -define(ID  , <<"primary/v4">>).
 -define(BASE, 10).
--define(DEFAULT_MIGRATION_SETTINGS, #{
-    enable  => false,
-    timer   => {timeout, 180},
-    timeout => 360, % lagre enought, that we can process butch of old events
-    limit   => 20   % 2xBASE, maybe even less
-}).
 
 
 %% API
@@ -136,22 +130,9 @@ process_call(Call, Machine, Context) ->
     {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
 
 process_signal({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
-    Action = case is_migration_enabled() of
-        true ->
-            start_migration();
-        false ->
-            #mg_stateproc_ComplexAction{}
-    end,
-    {Action, []};
-process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, Machine, Context) ->
-    %% at this point, we use timeouts only for migration
-    {Action, Events} = case is_migration_enabled() of
-        true ->
-            continue_migration(read_history(Machine), Context);
-        false ->
-            {#mg_stateproc_ComplexAction{}, []}
-    end,
-    {Action, encode_events(Events)}.
+    {#mg_stateproc_ComplexAction{}, []};
+process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, _Machine, _Context) ->
+    {#mg_stateproc_ComplexAction{}, []}.
 
 %%
 
@@ -279,58 +260,3 @@ get_event_id(ID) when is_integer(ID) andalso ID > 0 ->
 get_event_id(0) ->
     undefined.
 
-%% Migration
-
-is_migration_enabled() ->
-    MigrationSettings = get_migration_settings(),
-    maps:get(enable, MigrationSettings).
-
-get_migration_settings() ->
-    genlib_app:env(dmt_api, migration, ?DEFAULT_MIGRATION_SETTINGS).
-
-start_migration() ->
-    %%% start migration by setting timer up
-    _ = lager:info(<<"Migration started~n">>, []),
-    construct_set_timer_action().
-
-continue_migration(St, Context) ->
-    %% TODO we dont need squash_state here, we just need last version from history
-    {ok, #'Snapshot'{version = Version}} = squash_state(St),
-    EventID = get_event_id(Version),
-    Limit = maps:get(limit, get_migration_settings()),
-    _ = lager:info(<<"Migrating events from ~p to ~p~n">>, [Version, Version + Limit]),
-    try dmt_api_repository_v3:get_events(EventID, Limit, Context) of
-        [] ->
-            _ = lager:info(<<"Migration finished~n">>, []),
-            {construct_unset_timer_action(), []};
-        Events ->
-            {construct_set_timer_action(), Events}
-    catch
-        Type:Error ->
-            _ = lager:error(
-                <<"Migration error: ~p, stacktrace: ~p~n">>,
-                [{Type, Error}, erlang:get_stacktrace()]
-            ),
-            {construct_set_timer_action(), []}
-    end.
-
-construct_set_timer_action() ->
-    MigrationSettings = get_migration_settings(),
-    #mg_stateproc_ComplexAction{
-        timer = {set_timer, #mg_stateproc_SetTimerAction{
-            timer = maps:get(timer, MigrationSettings),
-            range = #mg_stateproc_HistoryRange{
-                'after' = undefined,
-                'limit' = ?BASE,
-                'direction' = backward
-            },
-            timeout = maps:get(timeout, MigrationSettings)
-        }}
-    }.
-
-construct_unset_timer_action() ->
-    #mg_stateproc_ComplexAction{
-        timer = {unset_timer, #mg_stateproc_UnsetTimerAction{}}
-    }.
-
-%%

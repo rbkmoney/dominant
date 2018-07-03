@@ -12,6 +12,7 @@
 
 -export([checkout/2]).
 -export([pull/2]).
+-export([pull/3]).
 -export([commit/3]).
 -export([get_events/3]).
 
@@ -78,8 +79,15 @@ checkout({version, V}, Context) ->
     {error, version_not_found}.
 
 pull(Version, Context) ->
+    pull(Version, undefined, Context).
+
+-spec pull(dmt_api_repository:version(), Limit :: pos_integer() | undefined, context()) ->
+    {ok, dmt_api_repository:history()} |
+    {error, version_not_found}.
+
+pull(Version, Limit, Context) ->
     After = get_event_id(Version),
-    case get_history_by_range(#mg_stateproc_HistoryRange{'after' = After}, Context) of
+    case get_history_by_range(#mg_stateproc_HistoryRange{'after' = After, 'limit' = Limit}, Context) of
         #st{history = History} ->
             {ok, History};
         {error, version_not_found} ->
