@@ -14,7 +14,6 @@
 -export([pull/2]).
 -export([pull/3]).
 -export([commit/3]).
--export([get_events/3]).
 
 %% State processor
 
@@ -124,22 +123,6 @@ get_history_by_range(HistoryRange, Context) ->
             {error, version_not_found}
     end.
 
--spec get_events(EventID :: integer(), Limit :: pos_integer(), context()) ->
-    list() | no_return().
-
-get_events(EventID, Limit, Context) ->
-    HistoryRange = #mg_stateproc_HistoryRange{
-        'after' = EventID,
-        'limit' = Limit
-    },
-    case dmt_api_automaton_client:get_history(?NS, ?ID, HistoryRange, Context) of
-        {ok, History} ->
-            [decode_event(EventData) || #mg_stateproc_Event{event_payload = EventData} <- History];
-        {error, #mg_stateproc_MachineNotFound{}} ->
-            throw(machine_not_found);
-        {error, #mg_stateproc_EventNotFound{}} ->
-            throw(version_not_found)
-    end.
 %%
 
 -spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
