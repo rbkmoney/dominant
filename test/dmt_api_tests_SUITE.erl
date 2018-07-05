@@ -9,6 +9,7 @@
 -export([end_per_group/2]).
 
 -export([pull_commit/1]).
+-export([retry_commit/1]).
 -export([insert/1]).
 -export([update/1]).
 -export([delete/1]).
@@ -42,7 +43,8 @@ groups() ->
         ]},
         {basic_lifecycle_v4, [sequence], [
             pull_commit,
-            {group, basic_lifecycle}
+            {group, basic_lifecycle},
+            retry_commit
         ]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
             insert,
@@ -175,6 +177,24 @@ pull_commit(_C) ->
     Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
     Version2 = dmt_client_api:commit(Version1, Commit),
     #{Version2 := Commit} = dmt_client_api:pull(Version1).
+
+-spec retry_commit(term()) -> term().
+retry_commit(_C) ->
+    Commit1 = #'Commit'{ops = [{insert, #'InsertOp'{
+        object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
+    }}]},
+    #'Snapshot'{version = Version1} = dmt_client_api:checkout({head, #'Head'{}}),
+    Version2 = dmt_client_api:commit(Version1, Commit1),
+    Version2 = Version1 + 1,
+    Version2 = dmt_client_api:commit(Version1, Commit1),
+    #'Snapshot'{version = Version2} = dmt_client_api:checkout({head, #'Head'{}}),
+    Commit2 = #'Commit'{ops = [{insert, #'InsertOp'{
+        object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
+    }}]},
+    Version3 = dmt_client_api:commit(Version2, Commit2),
+    Version3 = Version2 + 1,
+    Version2 = dmt_client_api:commit(Version1, Commit1),
+    #'Snapshot'{version = Version3} = dmt_client_api:checkout({head, #'Head'{}}).
 
 -spec migration_success(term()) -> term().
 migration_success(_C) ->

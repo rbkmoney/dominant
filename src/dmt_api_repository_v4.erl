@@ -140,6 +140,9 @@ handle_call({commit, Version, Commit}, St, _Context) ->
     case squash_state(St) of
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
             apply_commit(Snapshot, Commit);
+        {ok, #'Snapshot'{version = V}} when V > Version ->
+            % Is this retry? Maybe we already applied this commit.
+            check_commit(Version, Commit, St);
         {ok, _} ->
             {{error, head_mismatch}, []}
     end.
@@ -151,6 +154,15 @@ apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{op
             {{ok, Snapshot}, [make_event(Snapshot, Commit)]};
         {error, Reason} ->
             {{error, {operation_conflict, Reason}}, []}
+    end.
+
+check_commit(Version, Commit, #st{snapshot = BaseSnapshot, history = History}) ->
+    case maps:get(Version + 1, History) of
+        Commit ->
+            % it's ok, commit alredy applied, lets return this snapshot
+            {dmt_history:travel(Version + 1, History, BaseSnapshot), []};
+        _ ->
+            {{error, head_mismatch}, []}
     end.
 
 -spec read_history(machine() | history()) ->
