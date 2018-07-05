@@ -40,7 +40,7 @@
     {error, version_not_found}.
 -callback commit(version(), commit(), context()) ->
     {ok, snapshot()} |
-    {error, version_not_found | {operation_conflict, operation_conflict()}}.
+    {error, version_not_found | migration_in_progress | {operation_conflict, operation_conflict()}}.
 
 %%
 
@@ -87,7 +87,7 @@ pull(Version, Repository, Context) ->
 
 -spec commit(version(), commit(), repository(), context()) ->
     {ok, version()} |
-    {error, version_not_found | head_mismatch | {operation_conflict, operation_conflict()}}.
+    {error, version_not_found | head_mismatch | migration_in_progress | {operation_conflict, operation_conflict()}}.
 
 commit(Version, Commit, Repository, Context) ->
     case ensure_snapshot(dmt_api_cache:get_latest()) of

@@ -27,7 +27,9 @@ handle_function('Commit', [Version, Commit], Context, Repository) ->
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{});
         {error, head_mismatch} ->
-            woody_error:raise(business, #'ObsoleteCommitVersion'{})
+            woody_error:raise(business, #'ObsoleteCommitVersion'{});
+        {error, migration_in_progress} ->
+            woody_error:raise(system, {internal, resource_unavailable, <<"Migration in progress. Please, stand by.">>})
     end;
 handle_function('Checkout', [Reference], Context, Repository) ->
     case dmt_api_repository:checkout(Reference, Repository, Context) of
