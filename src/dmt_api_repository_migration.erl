@@ -129,15 +129,15 @@ get_machine(Context) ->
 
 start_migration() ->
     %%% start migration by setting timer up
-    _ = lager:info(<<"Migration started~n">>, []),
+    _ = lager:info(<<"Migration started">>, []),
     {construct_set_timer_action(), encode_aux_state(#{version => 0, is_finished => false}), []}.
 
 continue_migration(#{version := Version, is_finished := true} = State, _Context) ->
-    _ = lager:info(<<"Migration finished, last version: ~p~n">>, [Version]),
+    _ = lager:info(<<"Migration finished, last version: ~p">>, [Version]),
     {#mg_stateproc_ComplexAction{}, encode_aux_state(State), []};
 continue_migration(#{version := Version, is_finished := false} = OldState, Context) ->
     Limit = maps:get(limit, get_migration_settings()),
-    _ = lager:info(<<"Migrating events from ~p to ~p~n">>, [Version, Version + Limit]),
+    _ = lager:info(<<"Migrating events from ~p to ~p">>, [Version, Version + Limit]),
     NewState = case dmt_api_repository_v3:pull(Version, Limit, Context) of
         {ok, History} when map_size(History) > 0 ->
             OldState#{version => try_commit_history(Version, History, Context)};
@@ -163,7 +163,7 @@ try_commit_history(Version, History, Context) ->
             catch
                 Type:Error ->
                     _ = lager:error(
-                        <<"Migration error: ~p, stacktrace: ~p~n">>,
+                        <<"Migration error: ~p, stacktrace: ~p">>,
                         [{Type, Error}, erlang:get_stacktrace()]
                     ),
                     %% FIXME if we get timeout here, but commit was succesfull
