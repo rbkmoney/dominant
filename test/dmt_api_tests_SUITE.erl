@@ -114,7 +114,7 @@ start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
         {repository, Repository},
         {automaton_service_url, "http://machinegun:8022/v1/automaton"},
-        {max_cache_size, 2048} % 2Kb
+        {max_cache_size, 52428800} % 50Mb
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().

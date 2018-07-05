@@ -90,17 +90,12 @@ pull(Version, Repository, Context) ->
     {error, version_not_found | head_mismatch | migration_in_progress | {operation_conflict, operation_conflict()}}.
 
 commit(Version, Commit, Repository, Context) ->
-    case ensure_snapshot(dmt_api_cache:get_latest()) of
-        #'Snapshot'{version = CachedVersion} when Version >= CachedVersion ->
-            case Repository:commit(Version, Commit, Context) of
-                {ok, Snapshot} ->
-                    #'Snapshot'{version = VersionNext} = dmt_api_cache:put(Snapshot),
-                    {ok, VersionNext};
-                {error, _} = Error ->
-                    Error
-            end;
-        _ ->
-            {error, head_mismatch}
+    case Repository:commit(Version, Commit, Context) of
+        {ok, Snapshot} ->
+            #'Snapshot'{version = VersionNext} = dmt_api_cache:put(Snapshot),
+            {ok, VersionNext};
+        {error, _} = Error ->
+            Error
     end.
 
 %% Internal
@@ -115,11 +110,3 @@ try_get_object(ObjectReference, #'Snapshot'{version = Version, domain = Domain})
         error ->
             {error, object_not_found}
     end.
-
--spec ensure_snapshot({ok, snapshot()} | {error, version_not_found}) ->
-    snapshot().
-
-ensure_snapshot({ok, Snapshot}) ->
-    Snapshot;
-ensure_snapshot({error, version_not_found}) ->
-    #'Snapshot'{version = 0, domain = dmt_domain:new()}.
