@@ -9,9 +9,11 @@
 -export([end_per_group/2]).
 
 -export([pull_commit/1]).
+-export([retry_commit/1]).
 -export([insert/1]).
 -export([update/1]).
 -export([delete/1]).
+-export([migration_success/1]).
 
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 
@@ -27,25 +29,30 @@
 -spec all() -> [{group, group_name()}].
 all() ->
     [
-        {group, basic_lifecycle_v2},
-        {group, basic_lifecycle_v3}
+        {group, basic_lifecycle_v3},
+        {group, migration_to_v4},
+        {group, basic_lifecycle_v4}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
-        {basic_lifecycle_v2, [sequence], [
-            pull_commit,
-            {group, basic_lifecycle}
-        ]},
         {basic_lifecycle_v3, [sequence], [
             pull_commit,
             {group, basic_lifecycle}
+        ]},
+        {basic_lifecycle_v4, [sequence], [
+            pull_commit,
+            {group, basic_lifecycle},
+            retry_commit
         ]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
             insert,
             update,
             delete
+        ]},
+        {migration_to_v4, [sequence], [
+            migration_success
         ]}
     ].
 
@@ -54,17 +61,21 @@ groups() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     Apps =
+        genlib_app:start_application(sasl) ++ %% Added this to clean up logs
         genlib_app:start_application_with(lager, [
             {async_threshold, 1},
             {async_threshold_window, 0},
             {error_logger_hwm, 600},
             {suppress_application_start_stop, true},
             {handlers, [
-                {lager_common_test_backend, [warning, {lager_logstash_formatter, []}]}
+                % {lager_common_test_backend, [warning, {lager_logstash_formatter, []}]}
+                {lager_common_test_backend, warning}
             ]}
-        ]) ++ genlib_app:start_application_with(scoper, [
+        ]) ++
+        genlib_app:start_application_with(scoper, [
             {storage, scoper_storage_lager}
-        ]) ++ genlib_app:start_application_with(dmt_client, [
+        ]) ++
+        genlib_app:start_application_with(dmt_client, [
             {cache_update_interval, 5000}, % milliseconds
             {max_cache_size, #{
                 elements => 20,
@@ -82,10 +93,20 @@ end_per_suite(C) ->
     genlib_app:stop_unload_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(basic_lifecycle_v2, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v2)} | C];
 init_per_group(basic_lifecycle_v3, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v3)} | C];
+init_per_group(basic_lifecycle_v4, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
+init_per_group(migration_to_v4, C) ->
+    [{group_apps, genlib_app:start_application_with(dmt_api, [
+        {repository, dmt_api_repository_migration},
+        {migration, #{
+            timeout => 360,
+            limit   => 20
+        }},
+        {automaton_service_url, "http://machinegun:8022/v1/automaton"},
+        {max_cache_size, 2048} % 2Kb
+    ])} | C];
 init_per_group(_, C) ->
     C.
 
@@ -93,13 +114,15 @@ start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
         {repository, Repository},
         {automaton_service_url, "http://machinegun:8022/v1/automaton"},
-        {max_cache_size, 2048} % 2Kb
+        {max_cache_size, 52428800} % 50Mb
     ]).
 
 -spec end_per_group(group_name(), config()) -> term().
-end_per_group(basic_lifecycle_v2, C) ->
-    genlib_app:stop_unload_applications(?config(group_apps, C));
-end_per_group(basic_lifecycle_v3, C) ->
+end_per_group(Group, C) when
+    Group =:= basic_lifecycle_v3 orelse
+    Group =:= basic_lifecycle_v4 orelse
+    Group =:= migration_to_v4
+->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
     ok.
@@ -155,6 +178,45 @@ pull_commit(_C) ->
     Version2 = dmt_client_api:commit(Version1, Commit),
     #{Version2 := Commit} = dmt_client_api:pull(Version1).
 
+-spec retry_commit(term()) -> term().
+retry_commit(_C) ->
+    Commit1 = #'Commit'{ops = [{insert, #'InsertOp'{
+        object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
+    }}]},
+    #'Snapshot'{version = Version1} = dmt_client_api:checkout({head, #'Head'{}}),
+    Version2 = dmt_client_api:commit(Version1, Commit1),
+    Version2 = Version1 + 1,
+    Version2 = dmt_client_api:commit(Version1, Commit1),
+    #'Snapshot'{version = Version2} = dmt_client_api:checkout({head, #'Head'{}}),
+    Commit2 = #'Commit'{ops = [{insert, #'InsertOp'{
+        object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
+    }}]},
+    Version3 = dmt_client_api:commit(Version2, Commit2),
+    Version3 = Version2 + 1,
+    Version2 = dmt_client_api:commit(Version1, Commit1),
+    #'Snapshot'{version = Version3} = dmt_client_api:checkout({head, #'Head'{}}).
+
+-spec migration_success(term()) -> term().
+migration_success(_C) ->
+    #'Snapshot'{version = VersionV3} = dmt_client_api:checkout({head, #'Head'{}}),
+    true = VersionV3 > 0,
+    VersionV4 = wait_for_migration(VersionV3, 20, 1000),
+    VersionV4 = VersionV3 + 1.
+
+wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
+    ID = next_id(),
+    Object = fixture_domain_object(ID, <<"MigrationCommitFixture">>),
+    Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
+    try
+        dmt_client_api:commit(V, Commit)
+    catch
+        _Class:_Reason ->
+            timer:sleep(SleepInterval),
+            wait_for_migration(V, TriesLeft - 1, SleepInterval)
+    end;
+wait_for_migration(_, _, _) ->
+    error(wait_for_migration_failed).
+
 next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
 
@@ -166,3 +228,4 @@ fixture_domain_object(Ref, Data) ->
 
 fixture_object_ref(Ref) ->
     {category, #domain_CategoryRef{id = Ref}}.
+
