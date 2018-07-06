@@ -95,6 +95,8 @@ commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
         ?ID,
+        %% TODO in theory, it's enought ?BASE + 1 events here,
+        %% but it's complicated and needs to be covered by tests
         #mg_stateproc_HistoryRange{'after' = BaseID},
         encode_call({commit, Version, Commit}),
         Context

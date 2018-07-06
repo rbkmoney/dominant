@@ -142,36 +142,18 @@ continue_migration(#{version := Version, is_finished := false} = OldState, Conte
         {ok, History} when map_size(History) > 0 ->
             OldState#{version => try_commit_history(Version, History, Context)};
         {ok, _EmptyHistory} ->
-            OldState#{is_finished := true};
-        {error, Error} ->
-            %% this shouldn't happen, abort mission
-            error({continue_migration, Error})
+            OldState#{is_finished := true}
     end,
     {construct_set_timer_action(), encode_aux_state(NewState), []}.
 
 try_commit_history(Version, History, Context) ->
     %% TODO abstraction leak
-    case maps:get(Version + 1, History, undefined) of
+    NextVersion = Version + 1,
+    case maps:get(NextVersion, History, undefined) of
         #'Commit'{} = Commit ->
-            try dmt_api_repository_v4:commit(Version, Commit, Context) of
-                {ok, #'Snapshot'{}} ->
-                    %% continue history traversing
-                    try_commit_history(Version + 1, History, Context);
-                {error, Error} ->
-                    %% this shouldn't happen, abort mission
-                    error({continue_migration, Error})
-            catch
-                Type:Error ->
-                    _ = lager:error(
-                        <<"Migration error: ~p, stacktrace: ~p">>,
-                        [{Type, Error}, erlang:get_stacktrace()]
-                    ),
-                    %% FIXME if we get timeout here, but commit was succesfull
-                    %% we will fail on next timer iteration.
-
-                    %% return last successfully commited version
-                    Version
-            end;
+            {ok, #'Snapshot'{version = NextVersion}} = dmt_api_repository_v4:commit(Version, Commit, Context),
+            %% continue history traversing
+            try_commit_history(NextVersion, History, Context);
         undefined ->
             Version
     end.
