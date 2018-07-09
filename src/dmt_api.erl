@@ -32,11 +32,7 @@ init(_) ->
             port          => genlib_app:env(?MODULE, port, 8022),
             net_opts      => genlib_app:env(?MODULE, net_opts, []),
             event_handler => scoper_woody_event_handler,
-            handlers      => [
-                get_handler_spec(repository),
-                get_handler_spec(repository_client),
-                get_handler_spec(state_processor)
-            ],
+            handlers      => get_repository_handlers(),
             additional_routes => [
                 erl_health_handle:get_route(HealthCheckers)
             ]
@@ -46,25 +42,31 @@ init(_) ->
     Children = [Cache, API],
     {ok, {#{strategy => one_for_one, intensity => 10, period => 60}, Children}}.
 
--spec get_handler_spec(Which) -> {Path, {woody:service(), woody:handler(module())}} when
+get_repository_handlers() ->
+    Repository = genlib_app:env(?MODULE, repository, dmt_api_repository_v4),
+    [
+        get_handler_spec(repository, Repository),
+        get_handler_spec(repository_client, Repository),
+        get_handler_spec(state_processor, Repository)
+    ].
+
+-spec get_handler_spec(Which, Mod) -> {Path, {woody:service(), woody:handler(module())}} when
     Which   :: repository | repository_client | state_processor,
+    Mod     :: module(),
     Path    :: iodata().
 
-get_handler_spec(repository) ->
+get_handler_spec(repository, Mod) ->
     {"/v1/domain/repository", {
         {dmsl_domain_config_thrift, 'Repository'},
-        {dmt_api_repository_handler, get_repository_mod()}
+        {dmt_api_repository_handler, Mod}
     }};
-get_handler_spec(repository_client) ->
+get_handler_spec(repository_client, Mod) ->
     {"/v1/domain/repository_client", {
         {dmsl_domain_config_thrift, 'RepositoryClient'},
-        {dmt_api_repository_client_handler, get_repository_mod()}
+        {dmt_api_repository_client_handler, Mod}
     }};
-get_handler_spec(state_processor) ->
+get_handler_spec(state_processor, Mod) ->
     {"/v1/stateproc", {
         {mg_proto_state_processing_thrift, 'Processor'},
-        get_repository_mod()
+        {dmt_api_automaton_handler, Mod}
     }}.
-
-get_repository_mod() ->
-    genlib_app:env(?MODULE, repository, dmt_api_repository_v3).
