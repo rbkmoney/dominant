@@ -94,7 +94,7 @@ issue_rpc(Method, Args, Context) ->
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},
     {ok, URL} = application:get_env(dmt_api, automaton_service_url),
     Opts = #{
-        url => URL,
+        url => genlib:to_binary(URL),
         event_handler => scoper_woody_event_handler,
         transport_opts => [
             {recv_timeout, 60000}

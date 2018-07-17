@@ -7,6 +7,8 @@
 -export([end_per_suite/1]).
 -export([init_per_group/2]).
 -export([end_per_group/2]).
+-export([init_per_testcase/2]).
+-export([end_per_testcase/2]).
 
 -export([pull_commit/1]).
 -export([retry_commit/1]).
@@ -127,6 +129,16 @@ end_per_group(Group, C) when
 end_per_group(_, _C) ->
     ok.
 
+-spec init_per_testcase(test_case_name(), config()) -> config().
+init_per_testcase(_, C) ->
+    %% added because dmt_client:checkout({head, #'Head'{}})
+    %% could return old version from cache overwise
+    {ok, _Version} = dmt_client_cache:update(),
+    C.
+
+-spec end_per_testcase(test_case_name(), config()) -> term().
+end_per_testcase(_, _) ->
+    ok.
 %%
 %% tests
 
@@ -135,12 +147,13 @@ insert(_C) ->
     ID = next_id(),
     Object = fixture_domain_object(ID, <<"InsertFixture">>),
     Ref = fixture_object_ref(ID),
-    #'ObjectNotFound'{} = (catch dmt_client_api:checkout_object({head, #'Head'{}}, Ref)),
-    #'Snapshot'{version = Version1} = dmt_client_api:checkout({head, #'Head'{}}),
-    Version2 = dmt_client_api:commit(Version1, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
-    #'VersionedObject'{object = Object} = dmt_client_api:checkout_object({head, #'Head'{}}, Ref),
-    #'ObjectNotFound'{} = (catch dmt_client_api:checkout_object({version, Version1}, Ref)),
-    #'VersionedObject'{object = Object} = dmt_client_api:checkout_object({version, Version2}, Ref).
+    #'ObjectNotFound'{} = (catch dmt_client:checkout_object({head, #'Head'{}}, Ref)),
+    #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
+    Version2 = dmt_client:commit(Version1, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
+    _ = dmt_client_cache:update(),
+    #'VersionedObject'{object = Object} = dmt_client:checkout_object({head, #'Head'{}}, Ref),
+    #'ObjectNotFound'{} = (catch dmt_client:checkout_object({version, Version1}, Ref)),
+    #'VersionedObject'{object = Object} = dmt_client:checkout_object({version, Version2}, Ref).
 
 -spec update(term()) -> term().
 update(_C) ->
@@ -148,57 +161,61 @@ update(_C) ->
     Object1 = fixture_domain_object(ID, <<"UpdateFixture1">>),
     Object2 = fixture_domain_object(ID, <<"UpdateFixture2">>),
     Ref = fixture_object_ref(ID),
-    #'Snapshot'{version = Version0} = dmt_client_api:checkout({head, #'Head'{}}),
-    Version1 = dmt_client_api:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object1}}]}),
-    Version2 = dmt_client_api:commit(
+    #'Snapshot'{version = Version0} = dmt_client:checkout({head, #'Head'{}}),
+    Version1 = dmt_client:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object1}}]}),
+    Version2 = dmt_client:commit(
         Version1,
         #'Commit'{ops = [{update, #'UpdateOp'{old_object = Object1, new_object = Object2}}]}
     ),
-    #'VersionedObject'{object = Object1} = dmt_client_api:checkout_object({version, Version1}, Ref),
-    #'VersionedObject'{object = Object2} = dmt_client_api:checkout_object({version, Version2}, Ref).
+    _ = dmt_client_cache:update(),
+    #'VersionedObject'{object = Object1} = dmt_client:checkout_object({version, Version1}, Ref),
+    #'VersionedObject'{object = Object2} = dmt_client:checkout_object({version, Version2}, Ref).
 
 -spec delete(term()) -> term().
 delete(_C) ->
     ID = next_id(),
     Object = fixture_domain_object(ID, <<"DeleteFixture">>),
     Ref = fixture_object_ref(ID),
-    #'Snapshot'{version = Version0} = dmt_client_api:checkout({head, #'Head'{}}),
-    Version1 = dmt_client_api:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
-    Version2 = dmt_client_api:commit(Version1, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}),
-    #'VersionedObject'{object = Object} = dmt_client_api:checkout_object({version, Version1}, Ref),
-    #'ObjectNotFound'{} = (catch dmt_client_api:checkout_object({version, Version2}, Ref)).
+    #'Snapshot'{version = Version0} = dmt_client:checkout({head, #'Head'{}}),
+    Version1 = dmt_client:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
+    Version2 = dmt_client:commit(Version1, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}),
+    _ = dmt_client_cache:update(),
+    #'VersionedObject'{object = Object} = dmt_client:checkout_object({version, Version1}, Ref),
+    #'ObjectNotFound'{} = (catch dmt_client:checkout_object({version, Version2}, Ref)).
 
 -spec pull_commit(term()) -> term().
 pull_commit(_C) ->
     ID = next_id(),
-    History1 = #{} = dmt_client_api:pull(0),
+    History1 = #{} = dmt_client:pull(0),
     Version1 = lists:max([0 | maps:keys(History1)]),
     Object = fixture_domain_object(ID, <<"PullFixture">>),
     Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
-    Version2 = dmt_client_api:commit(Version1, Commit),
-    #{Version2 := Commit} = dmt_client_api:pull(Version1).
+    Version2 = dmt_client:commit(Version1, Commit),
+    #{Version2 := Commit} = dmt_client:pull(Version1).
 
 -spec retry_commit(term()) -> term().
 retry_commit(_C) ->
     Commit1 = #'Commit'{ops = [{insert, #'InsertOp'{
         object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
     }}]},
-    #'Snapshot'{version = Version1} = dmt_client_api:checkout({head, #'Head'{}}),
-    Version2 = dmt_client_api:commit(Version1, Commit1),
+    #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
+    Version2 = dmt_client:commit(Version1, Commit1),
     Version2 = Version1 + 1,
-    Version2 = dmt_client_api:commit(Version1, Commit1),
-    #'Snapshot'{version = Version2} = dmt_client_api:checkout({head, #'Head'{}}),
+    Version2 = dmt_client:commit(Version1, Commit1),
+    _ = dmt_client_cache:update(),
+    #'Snapshot'{version = Version2} = dmt_client:checkout({head, #'Head'{}}),
     Commit2 = #'Commit'{ops = [{insert, #'InsertOp'{
         object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
     }}]},
-    Version3 = dmt_client_api:commit(Version2, Commit2),
+    Version3 = dmt_client:commit(Version2, Commit2),
     Version3 = Version2 + 1,
-    Version2 = dmt_client_api:commit(Version1, Commit1),
-    #'Snapshot'{version = Version3} = dmt_client_api:checkout({head, #'Head'{}}).
+    Version2 = dmt_client:commit(Version1, Commit1),
+    _ = dmt_client_cache:update(),
+    #'Snapshot'{version = Version3} = dmt_client:checkout({head, #'Head'{}}).
 
 -spec migration_success(term()) -> term().
 migration_success(_C) ->
-    #'Snapshot'{version = VersionV3} = dmt_client_api:checkout({head, #'Head'{}}),
+    #'Snapshot'{version = VersionV3} = dmt_client:checkout({head, #'Head'{}}),
     true = VersionV3 > 0,
     VersionV4 = wait_for_migration(VersionV3, 20, 1000),
     VersionV4 = VersionV3 + 1.
@@ -208,7 +225,7 @@ wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
     Object = fixture_domain_object(ID, <<"MigrationCommitFixture">>),
     Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
     try
-        dmt_client_api:commit(V, Commit)
+        dmt_client:commit(V, Commit)
     catch
         _Class:_Reason ->
             timer:sleep(SleepInterval),
@@ -228,4 +245,3 @@ fixture_domain_object(Ref, Data) ->
 
 fixture_object_ref(Ref) ->
     {category, #domain_CategoryRef{id = Ref}}.
-
