@@ -1,18 +1,18 @@
--module(dmt_api_repository_v3).
+-module(dmt_api_repository_v4).
 -behaviour(dmt_api_repository).
 
 -include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
--define(ID  , <<"primary/v3">>).
+-define(ID  , <<"primary/v4">>).
 -define(BASE, 10).
+
 
 %% API
 
 -export([checkout/2]).
 -export([pull/2]).
--export([pull/3]).
 -export([commit/3]).
 
 %% State processor
@@ -31,8 +31,8 @@
 -type st()              :: #st{}.
 -type context()         :: woody_context:ctx().
 -type history_range()   :: mg_proto_state_processing_thrift:'HistoryRange'().
+-type machine()         :: mg_proto_state_processing_thrift:'Machine'().
 -type history()         :: mg_proto_state_processing_thrift:'History'().
--type machine()         :: dmt_api_automaton_handler:machine().
 
 -type ref()             :: dmsl_domain_config_thrift:'Reference'().
 -type snapshot()        :: dmt_api_repository:snapshot().
@@ -78,15 +78,8 @@ checkout({version, V}, Context) ->
     {error, version_not_found}.
 
 pull(Version, Context) ->
-    pull(Version, undefined, Context).
-
--spec pull(dmt_api_repository:version(), Limit :: pos_integer() | undefined, context()) ->
-    {ok, dmt_api_repository:history()} |
-    {error, version_not_found}.
-
-pull(Version, Limit, Context) ->
     After = get_event_id(Version),
-    case get_history_by_range(#mg_stateproc_HistoryRange{'after' = After, 'limit' = Limit}, Context) of
+    case get_history_by_range(#mg_stateproc_HistoryRange{'after' = After}, Context) of
         #st{history = History} ->
             {ok, History};
         {error, version_not_found} ->
@@ -102,6 +95,8 @@ commit(Version, Commit, Context) ->
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
         ?ID,
+        %% TODO in theory, it's enought ?BASE + 1 events here,
+        %% but it's complicated and needs to be covered by tests
         #mg_stateproc_HistoryRange{'after' = BaseID},
         encode_call({commit, Version, Commit}),
         Context
@@ -137,11 +132,9 @@ process_call(Call, Machine, Context) ->
     {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
 
 process_signal({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
-    % No migration here, just start empty machine
+    {#mg_stateproc_ComplexAction{}, []};
+process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, _Machine, _Context) ->
     {#mg_stateproc_ComplexAction{}, []}.
-
-encode_events(Events) ->
-    [encode_event(E) || E <- Events].
 
 %%
 
@@ -149,6 +142,9 @@ handle_call({commit, Version, Commit}, St, _Context) ->
     case squash_state(St) of
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
             apply_commit(Snapshot, Commit);
+        {ok, #'Snapshot'{version = V}} when V > Version ->
+            % Is this retry? Maybe we already applied this commit.
+            check_commit(Version, Commit, St);
         {ok, _} ->
             {{error, head_mismatch}, []}
     end.
@@ -162,7 +158,14 @@ apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{op
             {{error, {operation_conflict, Reason}}, []}
     end.
 
-%%
+check_commit(Version, Commit, #st{snapshot = BaseSnapshot, history = History}) ->
+    case maps:get(Version + 1, History) of
+        Commit ->
+            % it's ok, commit alredy applied, lets return this snapshot
+            {dmt_history:travel(Version + 1, History, BaseSnapshot), []};
+        _ ->
+            {{error, head_mismatch}, []}
+    end.
 
 -spec read_history(machine() | history()) ->
     st().
@@ -211,6 +214,9 @@ make_event(Snapshot, Commit) ->
     end,
     {commit, Commit, Meta}.
 
+encode_events(Events) ->
+    [encode_event(E) || E <- Events].
+
 encode_event({commit, Commit, Meta}) ->
     {arr, [{str, <<"commit">>}, encode(commit, Commit), encode_commit_meta(Meta)]}.
 
@@ -247,11 +253,11 @@ decode_call_result({arr, [{str, <<"err">>}, {bin, Reason}]}) ->
 
 %%
 
-decode(T, V) ->
-    dmt_api_thrift_utils:decode(msgpack, get_type_info(T), V).
-
 encode(T, V) ->
-    dmt_api_thrift_utils:encode(msgpack, get_type_info(T), V).
+    {bin, dmt_api_thrift_utils:encode(binary, get_type_info(T), V)}.
+
+decode(T, {bin, V}) ->
+    dmt_api_thrift_utils:decode(binary, get_type_info(T), V).
 
 get_type_info(commit) ->
     {struct, struct, {dmsl_domain_config_thrift, 'Commit'}};
@@ -267,3 +273,4 @@ get_event_id(ID) when is_integer(ID) andalso ID > 0 ->
     ID;
 get_event_id(0) ->
     undefined.
+

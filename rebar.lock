@@ -12,7 +12,7 @@
   0},
  {<<"dmt_client">>,
   {git,"git@github.com:rbkmoney/dmt_client.git",
-       {ref,"52183b5006e5459939727f99f085d3c680a245ec"}},
+       {ref,"8387fbed6f9ae4f00e5442c611589d321db55b90"}},
   0},
  {<<"dmt_core">>,
   {git,"git@github.com:rbkmoney/dmt_core.git",
@@ -33,7 +33,7 @@
  {<<"lager">>,{pkg,<<"lager">>,<<"3.2.1">>},0},
  {<<"lager_logstash_formatter">>,
   {git,"git@github.com:rbkmoney/lager_logstash_formatter.git",
-       {ref,"83a0f21c03dacbd876c7289435f369f573c749b1"}},
+       {ref,"24527c15c47749866f2d427b333fa1333a46b8af"}},
   0},
  {<<"metrics">>,{pkg,<<"metrics">>,<<"1.0.1">>},2},
  {<<"mg_proto">>,
@@ -42,10 +42,10 @@
   0},
  {<<"mimerl">>,{pkg,<<"mimerl">>,<<"1.0.2">>},2},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.4.0">>},2},
- {<<"rfc3339">>,{pkg,<<"rfc3339">>,<<"0.9.0">>},1},
+ {<<"rfc3339">>,{pkg,<<"rfc3339">>,<<"0.2.2">>},1},
  {<<"scoper">>,
   {git,"git@github.com:rbkmoney/scoper.git",
-       {ref,"802057089bac258f45e35263eb2223961618468d"}},
+       {ref,"cbe3abc4a66ca1f9121083f2bea603c44dcf1984"}},
   0},
  {<<"snowflake">>,
   {git,"https://github.com/rbkmoney/snowflake.git",
@@ -58,7 +58,7 @@
   1},
  {<<"woody">>,
   {git,"git@github.com:rbkmoney/woody_erlang.git",
-       {ref,"d9362a5f8128c031300958da09c237ca27076cc5"}},
+       {ref,"354ac7664529ddecc07376bdaf4408cd8022fb61"}},
   0}]}.
 [
 {pkg_hash,[
@@ -73,6 +73,6 @@
  {<<"metrics">>, <<"25F094DEA2CDA98213CECC3AEFF09E940299D950904393B2A29D191C346A8486">>},
  {<<"mimerl">>, <<"993F9B0E084083405ED8252B99460C4F0563E41729AB42D9074FD5E52439BE88">>},
  {<<"ranch">>, <<"10272F95DA79340FA7E8774BA7930B901713D272905D0012B06CA6D994F8826B">>},
- {<<"rfc3339">>, <<"2075653DC9407541C84B1E15F8BDA2ABE95FB17C9694025E079583F2D19C1060">>},
+ {<<"rfc3339">>, <<"1552DF616ACA368D982E9F085A0E933B6688A3F4938A671798978EC2C0C58730">>},
  {<<"ssl_verify_fun">>, <<"28A4D65B7F59893BC2C7DE786DEC1E1555BD742D336043FE644AE956C3497FBE">>}]}
 ].
