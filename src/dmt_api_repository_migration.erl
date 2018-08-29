@@ -16,6 +16,7 @@
 
 -export([checkout/2]).
 -export([pull/2]).
+-export([pull/3]).
 -export([commit/3]).
 
 %% State processor
@@ -51,11 +52,18 @@ checkout(Ref, Context) ->
     {error, version_not_found}.
 
 pull(Version, Context) ->
+        pull(Version, undefined, Context).
+
+-spec pull(dmt_api_repository:version(), dmt_api_repository:limit(), context()) ->
+    {ok, dmt_api_repository:history()} |
+    {error, version_not_found}.
+
+pull(Version, Limit, Context) ->
     case is_migration_finished(Context) of
         true ->
-            dmt_api_repository_v4:pull(Version, Context);
+            dmt_api_repository_v4:pull(Version, Limit, Context);
         false ->
-            dmt_api_repository_v3:pull(Version, Context)
+            dmt_api_repository_v3:pull(Version, Limit, Context)
     end.
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
