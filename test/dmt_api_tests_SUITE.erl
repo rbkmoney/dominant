@@ -24,6 +24,7 @@
 -type config() :: [{atom(), term()}].
 
 -define(config(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
+-define(DEFAULT_LIMIT, 9001). % to emulate unlimited polling
 
 -type test_case_name() :: atom().
 -type group_name() :: atom().
@@ -79,6 +80,7 @@ init_per_suite(C) ->
         ]) ++
         genlib_app:start_application_with(dmt_client, [
             {cache_update_interval, 5000}, % milliseconds
+            {cache_update_pull_limit, ?DEFAULT_LIMIT},
             {max_cache_size, #{
                 elements => 20,
                 memory => 52428800 % 50Mb
@@ -186,12 +188,12 @@ delete(_C) ->
 -spec pull_commit(term()) -> term().
 pull_commit(_C) ->
     ID = next_id(),
-    History1 = #{} = dmt_client:pull(0),
+    History1 = #{} = dmt_client:pull_range(0, ?DEFAULT_LIMIT),
     Version1 = lists:max([0 | maps:keys(History1)]),
     Object = fixture_domain_object(ID, <<"PullFixture">>),
     Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
     Version2 = dmt_client:commit(Version1, Commit),
-    #{Version2 := Commit} = dmt_client:pull(Version1).
+    #{Version2 := Commit} = dmt_client:pull_range(Version1, ?DEFAULT_LIMIT).
 
 -spec retry_commit(term()) -> term().
 retry_commit(_C) ->
