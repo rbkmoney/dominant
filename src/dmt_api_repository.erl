@@ -6,19 +6,21 @@
 
 -export([checkout/3]).
 -export([checkout_object/4]).
--export([pull/3]).
+-export([pull/4]).
 -export([commit/4]).
 
 -export_type([version/0]).
+-export_type([limit/0]).
 -export_type([snapshot/0]).
 -export_type([commit/0]).
 -export_type([history/0]).
 -export_type([operation_conflict/0]).
 
--type version() :: dmsl_domain_config_thrift:'Version'().
+-type version()  :: dmsl_domain_config_thrift:'Version'().
+-type limit()    :: dmsl_domain_config_thrift:'Limit'() | undefined.
 -type snapshot() :: dmsl_domain_config_thrift:'Snapshot'().
--type commit() :: dmsl_domain_config_thrift:'Commit'().
--type history() :: dmsl_domain_config_thrift:'History'().
+-type commit()   :: dmsl_domain_config_thrift:'Commit'().
+-type history()  :: dmsl_domain_config_thrift:'History'().
 
 -type ref() :: dmsl_domain_config_thrift:'Reference'().
 -type object_ref() :: dmsl_domain_thrift:'Reference'().
@@ -35,7 +37,7 @@
     % TODO this was made due to dialyzer warning, can't find the way to fix it
     {ok, term()} |
     {error, version_not_found}.
--callback pull(version(), context()) ->
+-callback pull(version(), limit(),  context()) ->
     {ok, history()} |
     {error, version_not_found}.
 -callback commit(version(), commit(), context()) ->
@@ -79,11 +81,11 @@ checkout_object(Reference, ObjectReference, Repository, Context) ->
             Error
     end.
 
--spec pull(version(), repository(), context()) ->
+-spec pull(version(), limit(), repository(), context()) ->
     {ok, history()} | {error, version_not_found}.
 
-pull(Version, Repository, Context) ->
-    Repository:pull(Version, Context).
+pull(Version, Limit, Repository, Context) ->
+    Repository:pull(Version, Limit, Context).
 
 -spec commit(version(), commit(), repository(), context()) ->
     {ok, version()} |

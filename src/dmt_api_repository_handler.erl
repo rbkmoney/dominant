@@ -14,6 +14,8 @@
         {ok, dmt_api_repository:version()} | no_return();
     ('Checkout', woody:args(), context(), woody:options()) ->
         {ok, dmt_api_repository:snapshot()} | no_return();
+    ('PullRange', woody:args(), context(), woody:options()) ->
+        {ok, dmt_api_repository:history()} | no_return();
     ('Pull', woody:args(), context(), woody:options()) ->
         {ok, dmt_api_repository:history()} | no_return().
 handle_function('Commit', [Version, Commit], Context, Repository) ->
@@ -38,8 +40,16 @@ handle_function('Checkout', [Reference], Context, Repository) ->
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{})
     end;
+handle_function('PullRange', [After, Limit], Context, Repository) ->
+    case dmt_api_repository:pull(After, Limit, Repository, Context) of
+        {ok, History} ->
+            {ok, History};
+        {error, version_not_found} ->
+            woody_error:raise(business, #'VersionNotFound'{})
+    end;
+%% depreceted, will be removed soon
 handle_function('Pull', [Version], Context, Repository) ->
-    case dmt_api_repository:pull(Version, Repository, Context) of
+    case dmt_api_repository:pull(Version, undefined, Repository, Context) of
         {ok, History} ->
             {ok, History};
         {error, version_not_found} ->
