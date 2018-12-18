@@ -27,7 +27,7 @@ RELNAME := dominant
 TAG = latest
 IMAGE_NAME = "$(ORG_NAME)/$(RELNAME):$(TAG)"
 
-CALL_ANYWHERE := submodules rebar-update compile xref lint dialyze start devrel release clean distclean
+CALL_ANYWHERE := submodules rebar-update compile xref lint dialyze release clean distclean
 
 CALL_W_CONTAINER := $(CALL_ANYWHERE) test
 
@@ -59,12 +59,6 @@ lint:
 
 dialyze:
 	$(REBAR) dialyzer
-
-start: submodules
-	$(REBAR) run
-
-devrel: submodules
-	$(REBAR) release
 
 release: submodules distclean
 	$(REBAR) as prod release
