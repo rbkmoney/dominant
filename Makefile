@@ -5,38 +5,30 @@ SUBTARGETS = $(patsubst %,%/.git,$(SUBMODULES))
 UTILS_PATH := build_utils
 TEMPLATES_PATH := .
 
+# Name of the service
 SERVICE_NAME := dominant
-
 # Service image default tag
 SERVICE_IMAGE_TAG ?= $(shell git rev-parse HEAD)
 # The tag for service image to be pushed with
 SERVICE_IMAGE_PUSH_TAG ?= $(SERVICE_IMAGE_TAG)
 
 # Base image for the service
-BASE_IMAGE_NAME := service_erlang
-BASE_IMAGE_TAG := 16e2b3ef17e5fdefac8554ced9c2c74e5c6e9e11
-
-## Variables required for utils_container.mk
+BASE_IMAGE_NAME := service-erlang
+BASE_IMAGE_TAG := bdb3e60ddc70044bae1aa581d260d3a9803a2477
 
 # Build image tag to be used
-BUILD_IMAGE_TAG := 317d28640a5dd2ec6e732d81283628d8ad3f3f52
+BUILD_IMAGE_TAG := fcf116dd775cc2e91bffb6a36835754e3f2d5321
 
-BASE_IMAGE := "$(ORG_NAME)/build:latest"
-RELNAME := dominant
-
-TAG = latest
-IMAGE_NAME = "$(ORG_NAME)/$(RELNAME):$(TAG)"
-
-CALL_ANYWHERE := submodules rebar-update compile xref lint dialyze release clean distclean
+CALL_ANYWHERE := all submodules rebar-update compile xref lint dialyze start devrel release clean distclean
 
 CALL_W_CONTAINER := $(CALL_ANYWHERE) test
-
-.PHONY: $(CALL_W_CONTAINER) all containerize push $(UTIL_TARGETS)
 
 all: compile
 
 -include $(UTILS_PATH)/make_lib/utils_container.mk
 -include $(UTILS_PATH)/make_lib/utils_image.mk
+
+.PHONY: $(CALL_W_CONTAINER)
 
 # CALL_ANYWHERE
 $(SUBTARGETS): %/.git: %

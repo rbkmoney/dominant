@@ -64,19 +64,8 @@ groups() ->
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
     Apps =
-        genlib_app:start_application(sasl) ++ %% Added this to clean up logs
-        genlib_app:start_application_with(lager, [
-            {async_threshold, 1},
-            {async_threshold_window, 0},
-            {error_logger_hwm, 600},
-            {suppress_application_start_stop, true},
-            {handlers, [
-                % {lager_common_test_backend, [warning, {lager_logstash_formatter, []}]}
-                {lager_common_test_backend, warning}
-            ]}
-        ]) ++
         genlib_app:start_application_with(scoper, [
-            {storage, scoper_storage_lager}
+            {storage, scoper_storage_logger}
         ]) ++
         genlib_app:start_application_with(dmt_client, [
             {cache_update_interval, 5000}, % milliseconds
@@ -86,8 +75,8 @@ init_per_suite(C) ->
                 memory => 52428800 % 50Mb
             }},
             {service_urls, #{
-                'Repository' => <<"dominant:8022/v1/domain/repository">>,
-                'RepositoryClient' => <<"dominant:8022/v1/domain/repository_client">>
+                'Repository' => <<"http://dominant:8022/v1/domain/repository">>,
+                'RepositoryClient' => <<"http://dominant:8022/v1/domain/repository_client">>
             }}
         ]),
     [{suite_apps, Apps} | C].

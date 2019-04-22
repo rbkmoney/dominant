@@ -96,9 +96,9 @@ issue_rpc(Method, Args, Context) ->
     Opts = #{
         url => genlib:to_binary(URL),
         event_handler => scoper_woody_event_handler,
-        transport_opts => [
-            {recv_timeout, 60000}
-        ]
+        transport_opts => #{
+            recv_timeout => 60000
+        }
     },
     case woody_client:call(Request, Opts, Context) of
         {ok, _} = Ok ->
