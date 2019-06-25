@@ -28,11 +28,11 @@ init(_) ->
     API = woody_server:child_spec(
         ?MODULE,
         #{
-            ip            => IP,
-            port          => genlib_app:env(?MODULE, port, 8022),
-            net_opts      => genlib_app:env(?MODULE, net_opts, []),
-            event_handler => scoper_woody_event_handler,
-            handlers      => get_repository_handlers(),
+            ip             => IP,
+            port           => genlib_app:env(?MODULE, port, 8022),
+            transport_opts => genlib_app:env(?MODULE, transport_opts, #{}),
+            event_handler  => scoper_woody_event_handler,
+            handlers       => get_repository_handlers(),
             additional_routes => [
                 erl_health_handle:get_route(HealthCheckers)
             ]
