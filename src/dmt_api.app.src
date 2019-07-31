@@ -7,7 +7,7 @@
         stdlib,
         scoper,
         woody,
-        dmsl,
+        damsel,
         dmt_core,
         mg_proto,
         erl_health
