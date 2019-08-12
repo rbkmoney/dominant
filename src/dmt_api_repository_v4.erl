@@ -1,7 +1,7 @@
 -module(dmt_api_repository_v4).
 -behaviour(dmt_api_repository).
 
--include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
+-include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
