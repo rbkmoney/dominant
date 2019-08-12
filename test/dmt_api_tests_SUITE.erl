@@ -17,7 +17,7 @@
 -export([delete/1]).
 -export([migration_success/1]).
 
--include_lib("dmsl/include/dmsl_domain_config_thrift.hrl").
+-include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
 
 %% tests descriptions
 
