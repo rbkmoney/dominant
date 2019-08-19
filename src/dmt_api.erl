@@ -24,7 +24,7 @@ stop(_State) ->
 
 init(_) ->
     {ok, IP} = inet:parse_address(genlib_app:env(?MODULE, ip, "::")),
-    HealthCheckers = genlib_app:env(?MODULE, health_checkers, []),
+    HealthCheck = enable_health_logging(genlib_app:env(?MODULE, health_check, #{})),
     API = woody_server:child_spec(
         ?MODULE,
         #{
@@ -34,7 +34,7 @@ init(_) ->
             event_handler  => scoper_woody_event_handler,
             handlers       => get_repository_handlers(),
             additional_routes => [
-                erl_health_handle:get_route(HealthCheckers)
+                erl_health_handle:get_route(HealthCheck)
             ]
         }
     ),
@@ -70,3 +70,10 @@ get_handler_spec(state_processor, Mod) ->
         {mg_proto_state_processing_thrift, 'Processor'},
         {dmt_api_automaton_handler, Mod}
     }}.
+
+-spec enable_health_logging(erl_health:check()) ->
+    erl_health:check().
+
+enable_health_logging(Check) ->
+    EvHandler = {erl_health_event_handler, []},
+    maps:map(fun (_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).
