@@ -31,6 +31,7 @@ init(_) ->
             ip             => IP,
             port           => genlib_app:env(?MODULE, port, 8022),
             transport_opts => genlib_app:env(?MODULE, transport_opts, #{}),
+            protocol_opts  => genlib_app:env(?MODULE, protocol_opts, #{}),
             event_handler  => scoper_woody_event_handler,
             handlers       => get_repository_handlers(),
             additional_routes => [
