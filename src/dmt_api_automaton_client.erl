@@ -92,14 +92,7 @@ construct_descriptor(NS, ID, HistoryRange) ->
     term() | no_return().
 issue_rpc(Method, Args, Context) ->
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},
-    {ok, URL} = application:get_env(dmt_api, automaton_service_url),
-    Opts = #{
-        url => genlib:to_binary(URL),
-        event_handler => scoper_woody_event_handler,
-        transport_opts => #{
-            recv_timeout => 60000
-        }
-    },
+    Opts = make_woody_options(automaton),
     case woody_client:call(Request, Opts, Context) of
         {ok, _} = Ok ->
             Ok;
@@ -110,3 +103,10 @@ issue_rpc(Method, Args, Context) ->
         {exception, Exception} ->
             {error, Exception}
     end.
+
+-spec make_woody_options(atom()) ->
+    woody_client:options().
+make_woody_options(Service) ->
+    Services = application:get_env(dmt_api, services, #{}),
+    #{Service := ServiceOptions} = Services,
+    ServiceOptions#{event_handler => scoper_woody_event_handler}.
