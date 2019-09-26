@@ -97,7 +97,11 @@ init_per_group(migration_to_v4, C) ->
             timeout => 360,
             limit   => 20
         }},
-        {automaton_service_url, "http://machinegun:8022/v1/automaton"},
+        {services, #{
+            automaton => #{
+                url =>"http://machinegun:8022/v1/automaton"
+            }
+        }},
         {max_cache_size, 2048} % 2Kb
     ])} | C];
 init_per_group(_, C) ->
@@ -106,7 +110,11 @@ init_per_group(_, C) ->
 start_with_repository(Repository) ->
     genlib_app:start_application_with(dmt_api, [
         {repository, Repository},
-        {automaton_service_url, "http://machinegun:8022/v1/automaton"},
+        {services, #{
+            automaton => #{
+                url =>"http://machinegun:8022/v1/automaton"
+            }
+        }},
         {max_cache_size, 52428800} % 50Mb
     ]).
 
