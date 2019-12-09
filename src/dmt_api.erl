@@ -45,31 +45,36 @@ init(_) ->
 
 get_repository_handlers() ->
     Repository = genlib_app:env(?MODULE, repository, dmt_api_repository_v4),
+    DefaultTimeout = genlib_app:env(?MODULE, default_woody_handling_timeout, timer:seconds(30)),
     [
-        get_handler_spec(repository, Repository),
-        get_handler_spec(repository_client, Repository),
+        get_handler_spec(repository, #{
+            repository => Repository,
+            default_handling_timeout => DefaultTimeout
+        }),
+        get_handler_spec(repository_client, #{
+            repository => Repository,
+            default_handling_timeout => DefaultTimeout
+        }),
         get_handler_spec(state_processor, Repository)
     ].
 
--spec get_handler_spec(Which, Mod) -> {Path, {woody:service(), woody:handler(module())}} when
-    Which   :: repository | repository_client | state_processor,
-    Mod     :: module(),
-    Path    :: iodata().
+-spec get_handler_spec(repository | repository_client | state_processor, woody:options()) ->
+    {Path :: iodata(), {woody:service(), woody:handler(woody:options())}}.
 
-get_handler_spec(repository, Mod) ->
+get_handler_spec(repository, Options) ->
     {"/v1/domain/repository", {
         {dmsl_domain_config_thrift, 'Repository'},
-        {dmt_api_repository_handler, Mod}
+        {dmt_api_repository_handler, Options}
     }};
-get_handler_spec(repository_client, Mod) ->
+get_handler_spec(repository_client, Options) ->
     {"/v1/domain/repository_client", {
         {dmsl_domain_config_thrift, 'RepositoryClient'},
-        {dmt_api_repository_client_handler, Mod}
+        {dmt_api_repository_client_handler, Options}
     }};
-get_handler_spec(state_processor, Mod) ->
+get_handler_spec(state_processor, Options) ->
     {"/v1/stateproc", {
         {mg_proto_state_processing_thrift, 'Processor'},
-        {dmt_api_automaton_handler, Mod}
+        {dmt_api_automaton_handler, Options}
     }}.
 
 -spec enable_health_logging(erl_health:check()) ->
