@@ -188,8 +188,11 @@ read_history(Events) ->
 
 read_history([], St) ->
     St;
-read_history([#mg_stateproc_Event{id = Id, event_payload = EventData} | Rest], #st{history = History} = St) ->
-    {commit, Commit, Meta} = decode_event(EventData),
+read_history(
+    [#mg_stateproc_Event{id = Id, data = EventData, format_version = FmtVsn} | Rest],
+    #st{history = History} = St
+) ->
+    {commit, Commit, Meta} = decode_event(FmtVsn, EventData),
     case Meta of
         #{snapshot := Snapshot} ->
             read_history(
@@ -223,22 +226,31 @@ make_event(Snapshot, Commit) ->
     {commit, Commit, Meta}.
 
 encode_events(Events) ->
-    [encode_event(E) || E <- Events].
+    FmtVsn = 1,
+    encode_events(FmtVsn, Events).
 
-encode_event({commit, Commit, Meta}) ->
-    {arr, [{str, <<"commit">>}, encode(commit, Commit), encode_commit_meta(Meta)]}.
+encode_events(FmtVsn, Events) ->
+    [encode_event(FmtVsn, E) || E <- Events].
 
-encode_commit_meta(#{snapshot := Snapshot}) ->
+encode_event(FmtVsn, Data) ->
+    #mg_stateproc_Content{format_version = FmtVsn, data = encode_event_data(FmtVsn, Data)}.
+
+encode_event_data(1 = FmtVsn, {commit, Commit, Meta}) ->
+    {arr, [{str, <<"commit">>}, encode(commit, Commit), encode_commit_meta(FmtVsn, Meta)]}.
+
+encode_commit_meta(1, #{snapshot := Snapshot}) ->
     {obj, #{{str, <<"snapshot">>} => encode(snapshot, Snapshot)}};
-encode_commit_meta(#{}) ->
+encode_commit_meta(1, #{}) ->
     {obj, #{}}.
 
-decode_event({arr, [{str, <<"commit">>}, Commit, Meta]}) ->
-    {commit, decode(commit, Commit), decode_commit_meta(Meta)}.
+decode_event(undefined, Data) ->
+    decode_event(1, Data);
+decode_event(1 = FmtVsn, {arr, [{str, <<"commit">>}, Commit, Meta]}) ->
+    {commit, decode(commit, Commit), decode_commit_meta(FmtVsn, Meta)}.
 
-decode_commit_meta({obj, #{{str, <<"snapshot">>} := Snapshot}}) ->
+decode_commit_meta(1, {obj, #{{str, <<"snapshot">>} := Snapshot}}) ->
     #{snapshot => decode(snapshot, Snapshot)};
-decode_commit_meta({obj, #{}}) ->
+decode_commit_meta(1, {obj, #{}}) ->
     #{}.
 
 %%
@@ -281,4 +293,3 @@ get_event_id(ID) when is_integer(ID) andalso ID > 0 ->
     ID;
 get_event_id(0) ->
     undefined.
-

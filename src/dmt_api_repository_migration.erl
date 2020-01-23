@@ -138,11 +138,11 @@ get_machine(Context) ->
 start_migration() ->
     %%% start migration by setting timer up
     _ = logger:info(<<"Migration started">>, []),
-    {construct_set_timer_action(), encode_aux_state(#{version => 0, is_finished => false}), []}.
+    {construct_set_timer_action(), set_aux_state(#{version => 0, is_finished => false}), []}.
 
 continue_migration(#{version := Version, is_finished := true} = State, _Context) ->
     _ = logger:info(<<"Migration finished, last version: ~p">>, [Version]),
-    {#mg_stateproc_ComplexAction{}, encode_aux_state(State), []};
+    {#mg_stateproc_ComplexAction{}, set_aux_state(State), []};
 continue_migration(#{version := Version, is_finished := false} = OldState, Context) ->
     Limit = maps:get(limit, get_migration_settings()),
     _ = logger:info(<<"Migrating events from ~p to ~p">>, [Version, Version + Limit]),
@@ -152,7 +152,7 @@ continue_migration(#{version := Version, is_finished := false} = OldState, Conte
         {ok, _EmptyHistory} ->
             OldState#{is_finished := true}
     end,
-    {construct_set_timer_action(), encode_aux_state(NewState), []}.
+    {construct_set_timer_action(), set_aux_state(NewState), []}.
 
 try_commit_history(Version, History, Context) ->
     %% TODO abstraction leak
@@ -176,16 +176,22 @@ construct_set_timer_action() ->
         }}
     }.
 
-get_aux_state(#mg_stateproc_Machine{aux_state = AuxState}) ->
-    decode_aux_state(AuxState).
+set_aux_state(AuxState) ->
+    FmtVsn = 1,
+    #mg_stateproc_Content{format_version = FmtVsn, data = encode_aux_state(FmtVsn, AuxState)}.
 
-encode_aux_state(#{version := Version, is_finished := IsFinished}) ->
+encode_aux_state(1, #{version := Version, is_finished := IsFinished}) ->
     {obj, #{
         {str, <<"version">>} => {i, Version},
         {str, <<"is_finished">>} => {b, IsFinished}
     }}.
 
-decode_aux_state({obj, #{
+get_aux_state(#mg_stateproc_Machine{aux_state = #mg_stateproc_Content{format_version = Version, data = AuxState}}) ->
+    decode_aux_state(Version, AuxState).
+
+decode_aux_state(undefined, AuxState) ->
+    decode_aux_state(1, AuxState);
+decode_aux_state(1, {obj, #{
     {str, <<"version">>} := {i, Version},
     {str, <<"is_finished">>} := {b, IsFinished}
 }}) ->
