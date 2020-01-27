@@ -141,7 +141,7 @@ process_signal({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
     {#mg_stateproc_ComplexAction{}, []}.
 
 encode_events(Events) ->
-    [encode_event(E) || E <- Events].
+    [#mg_stateproc_Content{data = encode_event(E)} || E <- Events].
 
 %%
 
@@ -177,7 +177,7 @@ read_history(Events) ->
 
 read_history([], St) ->
     St;
-read_history([#mg_stateproc_Event{id = Id, event_payload = EventData} | Rest], #st{history = History} = St) ->
+read_history([#mg_stateproc_Event{id = Id, data = EventData} | Rest], #st{history = History} = St) ->
     {commit, Commit, Meta} = decode_event(EventData),
     case Meta of
         #{snapshot := Snapshot} ->

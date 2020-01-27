@@ -31,7 +31,7 @@
 
 -export([handle_function/4]).
 
--define(NIL, {nl, #mg_msgpack_Nil{}}).
+-define(NIL, #mg_stateproc_Content{data = {nl, #mg_msgpack_Nil{}}}).
 
 -spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
     {ok, woody:result()} | no_return().
