@@ -25,7 +25,7 @@
        {ref,"3a80bb43a93eb0e7a940d19912d9e35c2cbe91f9"}},
   0},
  {<<"folsom">>,
-  {git,"https://github.com/folsom-project/folsom.git",
+  {git,"git@github.com:folsom-project/folsom.git",
        {ref,"9309bad9ffadeebbefe97521577c7480c7cfcd8a"}},
   2},
  {<<"genlib">>,
@@ -69,7 +69,7 @@
  {<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.4.1">>},3},
  {<<"woody">>,
   {git,"https://github.com/rbkmoney/woody_erlang.git",
-       {ref,"ce178d0232c2e7b710ab41a9b1b7d0ca912b2932"}},
+       {ref,"f2e56d8affcb57bdb603802362dc9d9058e2bddb"}},
   0}]}.
 [
 {pkg_hash,[
