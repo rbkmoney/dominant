@@ -25,8 +25,8 @@
        {ref,"3a80bb43a93eb0e7a940d19912d9e35c2cbe91f9"}},
   0},
  {<<"folsom">>,
-  {git,"git@github.com:folsom-project/folsom.git",
-       {ref,"9309bad9ffadeebbefe97521577c7480c7cfcd8a"}},
+  {git,"https://github.com/folsom-project/folsom.git",
+       {ref,"eeb1cc467eb64bd94075b95b8963e80d8b4df3df"}},
   2},
  {<<"genlib">>,
   {git,"https://github.com/rbkmoney/genlib.git",
@@ -36,7 +36,7 @@
  {<<"hackney">>,{pkg,<<"hackney">>,<<"1.15.2">>},1},
  {<<"how_are_you">>,
   {git,"https://github.com/rbkmoney/how_are_you.git",
-       {ref,"2bb46054e16aaba9357747cc72b7c42e1897a56d"}},
+       {ref,"8f11d17eeb6eb74096da7363a9df272fd3099718"}},
   1},
  {<<"idna">>,{pkg,<<"idna">>,<<"6.0.0">>},2},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},1},
@@ -69,7 +69,7 @@
  {<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.4.1">>},3},
  {<<"woody">>,
   {git,"https://github.com/rbkmoney/woody_erlang.git",
-       {ref,"f2e56d8affcb57bdb603802362dc9d9058e2bddb"}},
+       {ref,"e46a3b6303721d3c096d3cb65359f9b8b7652506"}},
   0}]}.
 [
 {pkg_hash,[
