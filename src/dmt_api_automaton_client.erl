@@ -109,4 +109,5 @@ issue_rpc(Method, Args, Context) ->
 make_woody_options(Service) ->
     Services = application:get_env(dmt_api, services, #{}),
     #{Service := ServiceOptions} = Services,
-    ServiceOptions#{event_handler => scoper_woody_event_handler}.
+    EventHandlerOpts = genlib_app:env(dmt_api, scoper_event_handler_options, #{}),
+    ServiceOptions#{event_handler => {scoper_woody_event_handler, EventHandlerOpts}}.
