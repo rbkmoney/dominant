@@ -68,7 +68,7 @@ pull(Version, Limit, Context) ->
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
     {ok, snapshot()} |
-    {error, version_not_found | migration_in_progress | {operation_conflict, dmt_api_repository:operation_conflict()}}.
+    {error, version_not_found | migration_in_progress | {operation_error, dmt_domain:operation_error()}}.
 
 commit(Version, Commit, Context) ->
     case is_migration_finished(Context) of
