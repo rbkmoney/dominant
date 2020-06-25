@@ -37,8 +37,8 @@
 all() ->
     [
         {group, basic_lifecycle_v3},
-        {group, migration_to_v4},
         {group, basic_lifecycle_v4},
+        {group, migration_to_v5},
         {group, basic_lifecycle_v5}
     ].
 
@@ -66,7 +66,7 @@ groups() ->
             update,
             delete
         ]},
-        {migration_to_v4, [sequence], [
+        {migration_to_v5, [sequence], [
             migration_success
         ]},
         {error_mapping, [parallel], [
@@ -96,7 +96,7 @@ init_per_group(basic_lifecycle_v4, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v4) ++ start_client()} | C];
 init_per_group(basic_lifecycle_v5, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v5) ++ start_client()} | C];
-init_per_group(migration_to_v4, C) ->
+init_per_group(migration_to_v5, C) ->
     ApiApps = genlib_app:start_application_with(dmt_api, [
         {repository, dmt_api_repository_migration},
         {migration, #{

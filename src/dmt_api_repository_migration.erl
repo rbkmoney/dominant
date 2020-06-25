@@ -5,12 +5,14 @@
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
 -define(NS  , <<"domain-config">>).
--define(ID  , <<"migration/v3_to_v4">>).
+-define(ID  , <<"migration/v4_to_v5">>).
 -define(DEFAULT_MIGRATION_SETTINGS, #{
     timeout => 360, % lagre enought, that we can process butch of old events
     limit   => 20   % 2xBASE, maybe even less
 }).
 
+-define(OLD_REPO, dmt_api_repository_v4).
+-define(NEW_REPO, dmt_api_repository_v4).
 
 %% API
 
@@ -42,9 +44,9 @@
 checkout(Ref, Context) ->
     case is_migration_finished(Context) of
         true ->
-            dmt_api_repository_v4:checkout(Ref, Context);
+            ?NEW_REPO:checkout(Ref, Context);
         false ->
-            dmt_api_repository_v3:checkout(Ref, Context)
+            ?OLD_REPO:checkout(Ref, Context)
     end.
 
 -spec pull(dmt_api_repository:version(), context()) ->
@@ -61,9 +63,9 @@ pull(Version, Context) ->
 pull(Version, Limit, Context) ->
     case is_migration_finished(Context) of
         true ->
-            dmt_api_repository_v4:pull(Version, Limit, Context);
+            ?NEW_REPO:pull(Version, Limit, Context);
         false ->
-            dmt_api_repository_v3:pull(Version, Limit, Context)
+            ?OLD_REPO:pull(Version, Limit, Context)
     end.
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
@@ -73,7 +75,7 @@ pull(Version, Limit, Context) ->
 commit(Version, Commit, Context) ->
     case is_migration_finished(Context) of
         true ->
-            dmt_api_repository_v4:commit(Version, Commit, Context);
+            ?NEW_REPO:commit(Version, Commit, Context);
         false ->
             {error, migration_in_progress}
     end.
@@ -90,8 +92,8 @@ process_call(
 ) ->
     process_call_(Call, Machine, Context);
 process_call(Call, Machine, Context) ->
-    % This is for v4 proccessor
-    dmt_api_repository_v4:process_call(Call, Machine, Context).
+    % This is for v5 proccessor
+    ?NEW_REPO:process_call(Call, Machine, Context).
 
 -spec process_call_(dmt_api_automaton_handler:call(), machine(), context()) -> no_return().
 process_call_(_Call, _Machine, _Context) ->
@@ -109,8 +111,8 @@ process_signal(
 ) ->
     process_signal_(Signal, Machine, Context);
 process_signal(Signal, Machine, Context) ->
-    % This is for v4 proccessor
-    dmt_api_repository_v4:process_signal(Signal, Machine, Context).
+    % This is for v5 proccessor
+    ?NEW_REPO:process_signal(Signal, Machine, Context).
 
 process_signal_({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
     start_migration();
@@ -146,22 +148,23 @@ continue_migration(#{version := Version, is_finished := true} = State, _Context)
 continue_migration(#{version := Version, is_finished := false} = OldState, Context) ->
     Limit = maps:get(limit, get_migration_settings()),
     _ = logger:info(<<"Migrating events from ~p to ~p">>, [Version, Version + Limit]),
-    NewState = case dmt_api_repository_v3:pull(Version, Limit, Context) of
+    NewState = case ?OLD_REPO:pull(Version, Limit, Context) of
         {ok, History} when map_size(History) > 0 ->
-            OldState#{version => try_commit_history(Version, History, Context)};
+            OldState#{version => try_migrate_history(Version, History, Context)};
         {ok, _EmptyHistory} ->
             OldState#{is_finished := true}
     end,
     {construct_set_timer_action(), set_aux_state(NewState), []}.
 
-try_commit_history(Version, History, Context) ->
+try_migrate_history(Version, History, Context) ->
     %% TODO abstraction leak
     NextVersion = Version + 1,
     case maps:get(NextVersion, History, undefined) of
         #'Commit'{} = Commit ->
-            {ok, #'Snapshot'{version = NextVersion}} = dmt_api_repository_v4:commit(Version, Commit, Context),
+            MigratedCommit = migrate_commit(Commit),
+            {ok, #'Snapshot'{version = NextVersion}} = ?NEW_REPO:commit(Version, MigratedCommit, Context),
             %% continue history traversing
-            try_commit_history(NextVersion, History, Context);
+            try_migrate_history(NextVersion, History, Context);
         undefined ->
             Version
     end.
@@ -189,10 +192,24 @@ encode_aux_state(1, #{version := Version, is_finished := IsFinished}) ->
 get_aux_state(#mg_stateproc_Machine{aux_state = #mg_stateproc_Content{format_version = Version, data = AuxState}}) ->
     decode_aux_state(Version, AuxState).
 
-decode_aux_state(undefined, AuxState) ->
-    decode_aux_state(1, AuxState);
 decode_aux_state(1, {obj, #{
     {str, <<"version">>} := {i, Version},
     {str, <<"is_finished">>} := {b, IsFinished}
 }}) ->
     #{version => Version, is_finished => IsFinished}.
+
+migrate_commit(#'Commit'{ops = Ops} = Commit) ->
+    Commit#'Commit'{ops = lists:map(fun migrate_op/1, Ops)}.
+
+migrate_op({insert, #'InsertOp'{object = Object} = Op}) ->
+    {insert, Op#'InsertOp'{object = migrate_object(Object)}};
+migrate_op({update, #'UpdateOp'{old_object = OldObject, new_object = NewObject} = Op}) ->
+    {update, Op#'UpdateOp'{
+        old_object = migrate_object(OldObject),
+        new_object = migrate_object(NewObject)
+    }};
+migrate_op({remove, #'RemoveOp'{object = Object} = Op}) ->
+    {remove, Op#'RemoveOp'{object = migrate_object(Object)}}.
+
+migrate_object(Object) ->
+    Object.
