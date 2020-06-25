@@ -39,7 +39,7 @@ all() ->
         {group, basic_lifecycle_v3},
         {group, migration_to_v4},
         {group, basic_lifecycle_v4},
-        {group, error_mapping}
+        {group, basic_lifecycle_v5}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
@@ -52,6 +52,13 @@ groups() ->
         {basic_lifecycle_v4, [sequence], [
             pull_commit,
             {group, basic_lifecycle},
+            {group, error_mapping},
+            retry_commit
+        ]},
+        {basic_lifecycle_v5, [sequence], [
+            pull_commit,
+            {group, basic_lifecycle},
+            {group, error_mapping},
             retry_commit
         ]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
@@ -73,22 +80,9 @@ groups() ->
 %% starting/stopping
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps =
-        genlib_app:start_application_with(scoper, [
-            {storage, scoper_storage_logger}
-        ]) ++
-        genlib_app:start_application_with(dmt_client, [
-            {cache_update_interval, 5000}, % milliseconds
-            {cache_update_pull_limit, ?DEFAULT_LIMIT},
-            {max_cache_size, #{
-                elements => 20,
-                memory => 52428800 % 50Mb
-            }},
-            {service_urls, #{
-                'Repository' => <<"http://dominant:8022/v1/domain/repository">>,
-                'RepositoryClient' => <<"http://dominant:8022/v1/domain/repository_client">>
-            }}
-        ]),
+    Apps = genlib_app:start_application_with(scoper, [
+        {storage, scoper_storage_logger}
+    ]),
     [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> term().
@@ -97,11 +91,13 @@ end_per_suite(C) ->
 
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(basic_lifecycle_v3, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v3)} | C];
+    [{group_apps, start_with_repository(dmt_api_repository_v3) ++ start_client()} | C];
 init_per_group(basic_lifecycle_v4, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
+    [{group_apps, start_with_repository(dmt_api_repository_v4) ++ start_client()} | C];
+init_per_group(basic_lifecycle_v5, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v5) ++ start_client()} | C];
 init_per_group(migration_to_v4, C) ->
-    [{group_apps, genlib_app:start_application_with(dmt_api, [
+    ApiApps = genlib_app:start_application_with(dmt_api, [
         {repository, dmt_api_repository_migration},
         {migration, #{
             timeout => 360,
@@ -113,9 +109,8 @@ init_per_group(migration_to_v4, C) ->
             }
         }},
         {max_cache_size, 2048} % 2Kb
-    ])} | C];
-init_per_group(error_mapping, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
+    ]),
+    [{group_apps, ApiApps ++ start_client()} | C];
 init_per_group(_, C) ->
     C.
 
@@ -130,11 +125,25 @@ start_with_repository(Repository) ->
         {max_cache_size, 52428800} % 50Mb
     ]).
 
+start_client() ->
+    genlib_app:start_application_with(dmt_client, [
+        {cache_update_interval, 5000}, % milliseconds
+        {cache_update_pull_limit, ?DEFAULT_LIMIT},
+        {max_cache_size, #{
+            elements => 20,
+            memory => 52428800 % 50Mb
+        }},
+        {service_urls, #{
+            'Repository' => <<"http://dominant:8022/v1/domain/repository">>,
+            'RepositoryClient' => <<"http://dominant:8022/v1/domain/repository_client">>
+        }}
+    ]).
+
 -spec end_per_group(group_name(), config()) -> term().
 end_per_group(Group, C) when
     Group =:= basic_lifecycle_v3 orelse
     Group =:= basic_lifecycle_v4 orelse
-    Group =:= error_mapping orelse
+    Group =:= basic_lifecycle_v5 orelse
     Group =:= migration_to_v4
 ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
