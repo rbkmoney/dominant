@@ -36,7 +36,7 @@ build('dominant', 'docker-host', finalHook) {
       sh 'make wc_xref'
     }
     runStage('dialyze') {
-      withWsCache("_build/default/rebar3_22.2.6_plt") {
+      withWsCache("_build/default/rebar3_23.0.1_plt") {
         sh 'make wc_dialyze'
       }
     }

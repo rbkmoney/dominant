@@ -41,10 +41,8 @@ do_handle_function('Commit', [Version, Commit], Context, Options) ->
     case dmt_api_repository:commit(Version, Commit, repository(Options), Context) of
         {ok, VersionNext} ->
             {ok, VersionNext};
-        {error, {operation_conflict, Conflict}} ->
-            woody_error:raise(business, #'OperationConflict'{
-                conflict = handle_operation_conflict(Conflict)
-            });
+        {error, {operation_error, Error}} ->
+            woody_error:raise(business, handle_operation_error(Error));
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{});
         {error, head_mismatch} ->
@@ -76,6 +74,15 @@ do_handle_function('Pull', [Version], Context, Options) ->
     end.
 
 %%
+handle_operation_error({conflict, Conflict}) ->
+    #'OperationConflict'{
+        conflict = handle_operation_conflict(Conflict)
+    };
+handle_operation_error({invalid, Invalid}) ->
+    #'OperationInvalid'{
+        errors = handle_operation_invalid(Invalid)
+    }.
+
 handle_operation_conflict(Conflict) ->
     case Conflict of
         {object_already_exists, Ref} ->
@@ -83,15 +90,24 @@ handle_operation_conflict(Conflict) ->
         {object_not_found, Ref} ->
             {object_not_found, #'ObjectNotFoundConflict'{object_ref = Ref}};
         {object_reference_mismatch, Ref} ->
-            {object_reference_mismatch, #'ObjectReferenceMismatchConflict'{object_ref = Ref}};
+            {object_reference_mismatch, #'ObjectReferenceMismatchConflict'{object_ref = Ref}}
+    end.
+
+handle_operation_invalid(Invalid) ->
+    case Invalid of
         {objects_not_exist, Refs} ->
-            ObjectRefs = lists:map(
-                fun({Ref, ReferencedBy}) ->
-                    #'NonexistantObject'{object_ref = Ref, referenced_by = ReferencedBy}
-                end,
-                Refs
-            ),
-            {objects_not_exist, #'ObjectsNotExistConflict'{object_refs = ObjectRefs}}
+            [
+                {object_not_exists, #'NonexistantObject'{
+                    object_ref = Ref,
+                    referenced_by = ReferencedBy
+                }} ||
+                    {Ref, ReferencedBy} <- Refs
+            ];
+        {object_reference_cycles, Cycles} ->
+            [
+                {object_reference_cycle, #'ObjectReferenceCycle'{cycle = Cycle}} ||
+                    Cycle <- Cycles
+            ]
     end.
 
 -spec repository(options()) ->

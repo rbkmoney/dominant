@@ -1,5 +1,6 @@
 -module(dmt_api_tests_SUITE).
 -include_lib("common_test/include/ct.hrl").
+-include_lib("stdlib/include/assert.hrl").
 
 -export([all/0]).
 -export([groups/0]).
@@ -16,6 +17,9 @@
 -export([update/1]).
 -export([delete/1]).
 -export([migration_success/1]).
+-export([conflict/1]).
+-export([nonexistent/1]).
+-export([reference_cycles/1]).
 
 -include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
 
@@ -34,7 +38,8 @@ all() ->
     [
         {group, basic_lifecycle_v3},
         {group, migration_to_v4},
-        {group, basic_lifecycle_v4}
+        {group, basic_lifecycle_v4},
+        {group, error_mapping}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
@@ -56,6 +61,11 @@ groups() ->
         ]},
         {migration_to_v4, [sequence], [
             migration_success
+        ]},
+        {error_mapping, [parallel], [
+            conflict,
+            nonexistent,
+            reference_cycles
         ]}
     ].
 
@@ -104,6 +114,8 @@ init_per_group(migration_to_v4, C) ->
         }},
         {max_cache_size, 2048} % 2Kb
     ])} | C];
+init_per_group(error_mapping, C) ->
+    [{group_apps, start_with_repository(dmt_api_repository_v4)} | C];
 init_per_group(_, C) ->
     C.
 
@@ -122,6 +134,7 @@ start_with_repository(Repository) ->
 end_per_group(Group, C) when
     Group =:= basic_lifecycle_v3 orelse
     Group =:= basic_lifecycle_v4 orelse
+    Group =:= error_mapping orelse
     Group =:= migration_to_v4
 ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
@@ -233,6 +246,62 @@ wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
 wait_for_migration(_, _, _) ->
     error(wait_for_migration_failed).
 
+-spec conflict(term()) -> term().
+conflict(_C) ->
+    #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
+    _ = ?assertThrow(
+        #'OperationConflict'{conflict =
+            {object_not_found, #'ObjectNotFoundConflict'{
+                object_ref = {criterion, #domain_CriterionRef{id = 42}}
+            }}
+        },
+        dmt_client:commit(Version1, #'Commit'{ops = [
+            {update, #'UpdateOp'{
+                old_object = criterion_w_refs(42, []),
+                new_object = criterion_w_refs(42, [43, 44, 45])
+            }}
+        ]})
+    ).
+
+-spec nonexistent(term()) -> term().
+nonexistent(_C) ->
+    #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
+    _ = ?assertThrow(
+        #'OperationInvalid'{errors = [
+            {object_not_exists, #'NonexistantObject'{
+                object_ref = {criterion, #domain_CriterionRef{}},
+                referenced_by = [{criterion, #domain_CriterionRef{id = 42}}]
+            }} | _
+        ]},
+        dmt_client:commit(Version1, #'Commit'{ops = [
+            {insert, #'InsertOp'{object = criterion_w_refs(42, [43, 44, 45])}}
+        ]})
+    ).
+
+-spec reference_cycles(term()) -> term().
+reference_cycles(_C) ->
+    #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
+    _ = ?assertThrow(
+        #'OperationInvalid'{errors = [
+            %% we expect 3 cycles to be found
+            {object_reference_cycle, #'ObjectReferenceCycle'{
+                cycle = [{criterion, #domain_CriterionRef{}} | _]
+            }},
+            {object_reference_cycle, #'ObjectReferenceCycle'{
+                cycle = [{criterion, #domain_CriterionRef{}} | _]
+            }},
+            {object_reference_cycle, #'ObjectReferenceCycle'{
+                cycle = [{criterion, #domain_CriterionRef{}} | _]
+            }}
+        ]},
+        dmt_client:commit(Version1, #'Commit'{ops = [
+            {insert, #'InsertOp'{object = criterion_w_refs(1, [2])}},
+            {insert, #'InsertOp'{object = criterion_w_refs(2, [3])}},
+            {insert, #'InsertOp'{object = criterion_w_refs(3, [4, 1])}},
+            {insert, #'InsertOp'{object = criterion_w_refs(4, [1, 2])}}
+        ]})
+    ).
+
 next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
 
@@ -244,3 +313,14 @@ fixture_domain_object(Ref, Data) ->
 
 fixture_object_ref(Ref) ->
     {category, #domain_CategoryRef{id = Ref}}.
+
+criterion_w_refs(ID, Refs) ->
+    {criterion, #domain_CriterionObject{
+        ref = #domain_CriterionRef{id = ID},
+        data = #domain_Criterion{
+            name = genlib:format(ID),
+            predicate = {any_of,
+                ordsets:from_list([{criterion, #domain_CriterionRef{id = Ref}} || Ref <- Refs])
+            }
+        }
+    }}.

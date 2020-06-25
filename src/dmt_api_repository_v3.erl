@@ -95,7 +95,7 @@ pull(Version, Limit, Context) ->
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
     {ok, snapshot()} |
-    {error, version_not_found | {operation_conflict, dmt_api_repository:operation_conflict()}}.
+    {error, version_not_found | {operation_error, dmt_domain:operation_error()}}.
 
 commit(Version, Commit, Context) ->
     BaseID = get_event_id(get_base_version(Version)),
@@ -159,7 +159,7 @@ apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{op
             Snapshot = #'Snapshot'{version = VersionWas + 1, domain = Domain},
             {{ok, Snapshot}, [make_event(Snapshot, Commit)]};
         {error, Reason} ->
-            {{error, {operation_conflict, Reason}}, []}
+            {{error, {operation_error, Reason}}, []}
     end.
 
 %%

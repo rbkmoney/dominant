@@ -14,7 +14,6 @@
 -export_type([snapshot/0]).
 -export_type([commit/0]).
 -export_type([history/0]).
--export_type([operation_conflict/0]).
 
 -type version()  :: dmsl_domain_config_thrift:'Version'().
 -type limit()    :: dmsl_domain_config_thrift:'Limit'() | undefined.
@@ -27,11 +26,7 @@
 -type repository() :: module().
 -type context() :: woody_context:ctx().
 
--type operation_conflict() ::
-    {object_already_exists, object_ref()} |
-    {object_not_found, object_ref()} |
-    {object_reference_mismatch, object_ref()} |
-    {objects_not_exist, [{object_ref(), [object_ref()]}]}.
+-type operation_error() :: dmt_domain:operation_error().
 
 -callback checkout(ref(), context()) ->
     % TODO this was made due to dialyzer warning, can't find the way to fix it
@@ -42,7 +37,7 @@
     {error, version_not_found}.
 -callback commit(version(), commit(), context()) ->
     {ok, snapshot()} |
-    {error, version_not_found | migration_in_progress | {operation_conflict, operation_conflict()}}.
+    {error, version_not_found | migration_in_progress | {operation_error, operation_error()}}.
 
 %%
 
@@ -89,7 +84,7 @@ pull(Version, Limit, Repository, Context) ->
 
 -spec commit(version(), commit(), repository(), context()) ->
     {ok, version()} |
-    {error, version_not_found | head_mismatch | migration_in_progress | {operation_conflict, operation_conflict()}}.
+    {error, version_not_found | head_mismatch | migration_in_progress | {operation_error, operation_error()}}.
 
 commit(Version, Commit, Repository, Context) ->
     case Repository:commit(Version, Commit, Context) of
