@@ -237,7 +237,14 @@ rewrite_provider_selector({decisions, Decisions}) ->
     {decisions, lists:map(fun rewrite_provider_decision/1, Decisions)}.
 
 rewrite_provider_decision({Name, Predicate, Selector}) ->
-    {Name, Predicate, rewrite_provider_selector(Selector)}.
+    {rewrite_provider_decision_name(Name), Predicate, rewrite_provider_selector(Selector)}.
+
+rewrite_provider_decision_name(domain_WithdrawalProviderDecision) ->
+    domain_ProviderDecision;
+rewrite_provider_decision_name(domain_P2PProviderDecision) ->
+    domain_ProviderDecision;
+rewrite_provider_decision_name(Name) ->
+    Name.
 
 add_ops({insert, #'InsertOp'{object = Object0} = Op}) ->
     case maybe_clone_object(Object0) of
@@ -265,7 +272,6 @@ add_ops({remove, #'RemoveOp'{object = Object0} = Op}) ->
 maybe_clone_object({withdrawal_provider, Object}) ->
     #domain_WithdrawalProviderObject{data = Data, ref = Ref} = Object,
     NewData = #domain_Provider{
-        abs_account = <<"">>,  % remove me
         name = Data#domain_WithdrawalProvider.name,
         description = default(Data#domain_WithdrawalProvider.description, <<"">>),
         proxy = Data#domain_WithdrawalProvider.proxy,

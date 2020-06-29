@@ -144,7 +144,7 @@ end_per_group(Group, C) when
     Group =:= basic_lifecycle_v3 orelse
     Group =:= basic_lifecycle_v4 orelse
     Group =:= basic_lifecycle_v5 orelse
-    Group =:= migration_to_v4
+    Group =:= migration_to_v5
 ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
