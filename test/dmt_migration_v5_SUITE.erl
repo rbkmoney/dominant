@@ -15,6 +15,7 @@
 -export([end_per_testcase/2]).
 
 -export([provider_terms_rewriting_test/1]).
+-export([terminal_terms_rewriting_test/1]).
 -export([institution_provider_rewriting_test/1]).
 -export([withdrawal_provider_add_test/1]).
 -export([p2p_provider_add_test/1]).
@@ -42,6 +43,7 @@ groups() ->
     [
         {all, [sequence], [
             provider_terms_rewriting_test,
+            terminal_terms_rewriting_test,
             institution_provider_rewriting_test,
             withdrawal_provider_add_test,
             p2p_provider_add_test,
@@ -116,6 +118,41 @@ provider_terms_rewriting_test(_C) ->
     ?assertEqual(Expected1, checkout({provider, Ref}, Version1)),
     ?assertEqual(not_found, checkout({provider, Ref}, Version2)),
     ?assertEqual(not_found, checkout({provider, Ref}, Version3)),
+    ok = stop(Apps1).
+
+-spec terminal_terms_rewriting_test(term()) -> term().
+terminal_terms_rewriting_test(_C) ->
+    Apps0 = start_with_repository(dmt_api_repository_v4),
+    Ref = #domain_TerminalRef{id = next_id()},
+    Data0 = #domain_Terminal{
+        name = <<"Brominal">>,
+        description = <<"Brominal description">>,
+        terms_legacy = #domain_PaymentsProvisionTerms{}
+    },
+    Object0 = {terminal, #domain_TerminalObject{ref = Ref, data = Data0}},
+    Object1 = {terminal, #domain_TerminalObject{
+        ref = Ref,
+        data = Data0#domain_Terminal{name = <<"Drominal">>}
+    }},
+    Version0 = insert(Object0),
+    Version1 = update(Object0, Object1),
+    Version2 = remove(Object1),
+    {Version3, Apps1} = migrate(Version2, Apps0),
+    Expected0 = #domain_TerminalObject{
+        ref = Ref,
+        data = Data0#domain_Terminal{
+            terms = #domain_ProvisionTermSet{
+                payments = Data0#domain_Terminal.terms_legacy
+            }
+        }
+    },
+    Expected1 = Expected0#domain_TerminalObject{
+        data = Expected0#domain_TerminalObject.data#domain_Terminal{name = <<"Drominal">>}
+    },
+    ?assertEqual(Expected0, checkout({terminal, Ref}, Version0)),
+    ?assertEqual(Expected1, checkout({terminal, Ref}, Version1)),
+    ?assertEqual(not_found, checkout({terminal, Ref}, Version2)),
+    ?assertEqual(not_found, checkout({terminal, Ref}, Version3)),
     ok = stop(Apps1).
 
 -spec institution_provider_rewriting_test(term()) -> term().

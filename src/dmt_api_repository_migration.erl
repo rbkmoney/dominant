@@ -218,6 +218,13 @@ rewrite_object({provider, #domain_ProviderObject{data = Data} = Object}) ->
         }
     },
     {provider, Object#domain_ProviderObject{data = NewData}};
+rewrite_object({terminal, #domain_TerminalObject{data = Data} = Object}) ->
+    NewData = Data#domain_Terminal{
+        terms = #domain_ProvisionTermSet{
+            payments = Data#domain_Terminal.terms_legacy
+        }
+    },
+    {terminal, Object#domain_TerminalObject{data = NewData}};
 rewrite_object({payment_institution, #domain_PaymentInstitutionObject{data = Data} = Object}) ->
     NewData = Data#domain_PaymentInstitution{
         withdrawal_providers = rewrite_provider_selector(
