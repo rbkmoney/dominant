@@ -59,6 +59,7 @@ build('dominant', 'docker-host', finalHook) {
         }
       }
     } finally {
+      runErlSecurityTools()
       runStage('rm local image') {
         sh 'make rm_local_image'
       }
