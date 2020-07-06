@@ -159,7 +159,7 @@ try_migrate_history(Version, History, Context) ->
     case maps:get(NextVersion, History, undefined) of
         #'Commit'{} = Commit ->
             MigratedCommit = migrate_commit(Commit),
-            {ok, #'Snapshot'{version = NextVersion}} = dmt_api_repository_v5:commit(Version, MigratedCommit, Context),
+            ok = dmt_api_repository_v5:internal_commit(Version, MigratedCommit, Context),
             %% continue history traversing
             try_migrate_history(NextVersion, History, Context);
         undefined ->
