@@ -154,16 +154,13 @@ continue_migration(#{version := Version, is_finished := false} = OldState, Conte
     {construct_set_timer_action(), set_aux_state(NewState), []}.
 
 try_migrate_history(Version, History, Context) ->
-    %% TODO abstraction leak
-    NextVersion = Version + 1,
-    case maps:get(NextVersion, History, undefined) of
-        #'Commit'{} = Commit ->
-            MigratedCommit = migrate_commit(Commit),
-            ok = dmt_api_repository_v5:internal_commit(Version, MigratedCommit, Context),
-            %% continue history traversing
-            try_migrate_history(NextVersion, History, Context);
-        undefined ->
-            Version
+    case lists:sort(maps:keys(History)) of
+        [] ->
+            Version;
+        NextVersions ->
+            Commits = [migrate_commit(maps:get(V, History)) || V <- NextVersions],
+            ok = dmt_api_repository_v5:internal_commit(Version, Commits, Context),
+            lists:last(NextVersions)
     end.
 
 construct_set_timer_action() ->

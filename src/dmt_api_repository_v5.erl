@@ -112,11 +112,11 @@ commit(Version, Commit, Context) ->
         Context
     )).
 
--spec internal_commit(dmt_api_repository:version(), commit(), context()) ->
+-spec internal_commit(dmt_api_repository:version(), [commit()], context()) ->
     ok |
     {error, version_not_found | {operation_error, dmt_domain:operation_error()}}.
 
-internal_commit(Version, Commit, Context) ->
+internal_commit(Version, Commits, Context) ->
     BaseID = get_event_id(get_base_version(Version)),
     decode_call_result(dmt_api_automaton_client:call(
         ?NS,
@@ -124,7 +124,7 @@ internal_commit(Version, Commit, Context) ->
         %% TODO in theory, it's enought ?BASE + 1 events here,
         %% but it's complicated and needs to be covered by tests
         #mg_stateproc_HistoryRange{'after' = BaseID},
-        encode_call({internal_commit, Version, Commit}),
+        encode_call({internal_commit, Version, Commits}),
         Context
     )).
 
@@ -164,26 +164,8 @@ process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, _Machine, _Context) ->
 
 %%
 
-handle_call({internal_commit, Version, Commit}, St, _Context) ->
-    case squash_state(St) of
-        {ok, #'Snapshot'{version = Version} = Snapshot} ->
-            case apply_commit(Snapshot, Commit) of
-                {{ok, _NewSnapshot}, Events} ->
-                    {ok, Events};
-                {{error, _Reason}, _Events} = Error ->
-                    Error
-            end;
-        {ok, #'Snapshot'{version = V}} when V > Version ->
-            % Is this retry? Maybe we already applied this commit.
-            case check_commit(Version, Commit, St) of
-                {{ok, _NewSnapshot}, Events} ->
-                    {ok, Events};
-                {{error, _Reason}, _Events} = Error ->
-                    Error
-            end;
-        {ok, _} ->
-            {{error, head_mismatch}, []}
-    end;
+handle_call({internal_commit, Version, Commits}, St, Context) ->
+    handle_internal_commit(Version, Commits, St, Context, []);
 handle_call({commit, Version, Commit}, St, _Context) ->
     case squash_state(St) of
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
@@ -193,6 +175,17 @@ handle_call({commit, Version, Commit}, St, _Context) ->
             check_commit(Version, Commit, St);
         {ok, _} ->
             {{error, head_mismatch}, []}
+    end.
+
+handle_internal_commit(_Version, [], _St, _Context, Events) ->
+    {ok, Events};
+handle_internal_commit(Version, [Commit | CommitsTail], St, Context, Events) ->
+    case handle_call({commit, Version, Commit}, St, Context) of
+        {{ok, Snapshot}, NewEvents} ->
+            NewSt = #st{snapshot = Snapshot},
+            handle_internal_commit(Version + 1, CommitsTail, NewSt, Context, Events ++ NewEvents);
+        {{error, _Reason} = Error, _NewEvents} ->
+            {Error, []}
     end.
 
 apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{ops = Ops} = Commit) ->
@@ -291,13 +284,15 @@ decode_commit_meta(1, {obj, #{}}) ->
 
 %%
 
-encode_call({internal_commit, Version, Commit}) ->
-    {arr, [{str, <<"internal_commit">>}, {i, Version}, encode(commit, Commit)]};
+encode_call({internal_commit, Version, Commits}) ->
+    EncodedCommits = [encode(commit, Commit) || Commit <- Commits],
+    {arr, [{str, <<"internal_commit">>}, {i, Version}, {arr, EncodedCommits}]};
 encode_call({commit, Version, Commit}) ->
     {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit)]}.
 
-decode_call({arr, [{str, <<"internal_commit">>}, {i, Version}, Commit]}) ->
-    {internal_commit, Version, decode(commit, Commit)};
+decode_call({arr, [{str, <<"internal_commit">>}, {i, Version}, {arr, EncodedCommits}]}) ->
+    Commit = [decode(commit, EncodedCommit) || EncodedCommit <- EncodedCommits],
+    {internal_commit, Version, Commit};
 decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
     {commit, Version, decode(commit, Commit)}.
 
