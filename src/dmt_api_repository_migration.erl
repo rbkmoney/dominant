@@ -238,6 +238,8 @@ rewrite_object({payment_institution, #domain_PaymentInstitutionObject{data = Dat
 rewrite_object(Object) ->
     Object.
 
+rewrite_provider_selector(undefined) ->
+    undefined;
 rewrite_provider_selector({value, Refs}) ->
     {value, ordsets:from_list(lists:map(fun rewrite_ref/1, Refs))};
 rewrite_provider_selector({decisions, Decisions}) ->
