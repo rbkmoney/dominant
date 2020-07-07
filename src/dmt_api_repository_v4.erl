@@ -136,16 +136,19 @@ process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context)
     {Result, Events} = handle_call(Args, read_history(Machine), Context),
     {encode_call_result(Result), encode_events(Events)};
 process_call(_Call, #mg_stateproc_Machine{ns = NS, id = ID}, _Context) ->
-    Message = <<"Unknown machine '", NS/binary, "' '", ID/binary,"'">>,
+    Message = <<"Unknown machine '", NS/binary, "' '", ID/binary, "'">>,
     woody_error:raise(system, {internal, resource_unavailable, Message}).
 
 -spec process_signal(dmt_api_automaton_handler:signal(), machine(), context()) ->
     {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
 
-process_signal({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
+process_signal({init, #mg_stateproc_InitSignal{}}, #mg_stateproc_Machine{ns = ?NS, id = ?ID}, _Context) ->
     {#mg_stateproc_ComplexAction{}, []};
-process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, _Machine, _Context) ->
-    {#mg_stateproc_ComplexAction{}, []}.
+process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, #mg_stateproc_Machine{ns = ?NS, id = ?ID}, _Context) ->
+    {#mg_stateproc_ComplexAction{}, []};
+process_signal(_Signal, #mg_stateproc_Machine{ns = NS, id = ID}, _Context) ->
+    Message = <<"Unknown machine '", NS/binary, "' '", ID/binary, "'">>,
+    woody_error:raise(system, {internal, resource_unavailable, Message}).
 
 %%
 
