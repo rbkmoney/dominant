@@ -52,13 +52,13 @@ groups() ->
         {basic_lifecycle_v4, [sequence], [
             pull_commit,
             {group, basic_lifecycle},
-            {group, error_mapping},
+            % {group, error_mapping},
             retry_commit
         ]},
         {basic_lifecycle_v5, [sequence], [
             pull_commit,
             {group, basic_lifecycle},
-            {group, error_mapping},
+            % {group, error_mapping},
             retry_commit
         ]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
