@@ -8,7 +8,8 @@
 -define(ID  , <<"migration/v4_to_v5">>).
 -define(DEFAULT_MIGRATION_SETTINGS, #{
     timeout => 360, % lagre enought, that we can process butch of old events
-    limit   => 20   % 2xBASE, maybe even less
+    limit => 20,   % 2xBASE, maybe even less
+    read_only_gap => 1000  % make config read-only near of the migration end
 }).
 
 %% API
@@ -74,7 +75,12 @@ commit(Version, Commit, Context) ->
         true ->
             dmt_api_repository_v5:commit(Version, Commit, Context);
         false ->
-            {error, migration_in_progress}
+            case is_safe_to_commit(Version, Context) of
+                true ->
+                    dmt_api_repository_v4:commit(Version, Commit, Context);
+                false ->
+                    {error, migration_in_progress}
+            end
     end.
 
 %%
@@ -82,14 +88,11 @@ commit(Version, Commit, Context) ->
 -spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
     {dmt_api_automaton_handler:response(), dmt_api_automaton_handler:events()} | no_return().
 
-process_call(
-    Call,
-    #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine,
-    Context
-) ->
+process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context) ->
     process_call_(Call, Machine, Context);
-process_call(Call, Machine, Context) ->
-    % This is for v5 proccessor
+process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = <<"primary/v4">>} = Machine, Context) ->
+    dmt_api_repository_v4:process_call(Call, Machine, Context);
+process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = <<"primary/v5">>} = Machine, Context) ->
     dmt_api_repository_v5:process_call(Call, Machine, Context).
 
 -spec process_call_(dmt_api_automaton_handler:call(), machine(), context()) -> no_return().
@@ -101,14 +104,11 @@ process_call_(_Call, _Machine, _Context) ->
     {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:aux_state(), dmt_api_automaton_handler:events()} |
     no_return().
 
-process_signal(
-    Signal,
-    #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine,
-    Context
-) ->
+process_signal(Signal, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context) ->
     process_signal_(Signal, Machine, Context);
-process_signal(Signal, Machine, Context) ->
-    % This is for v5 proccessor
+process_signal(Signal, #mg_stateproc_Machine{ns = ?NS, id = <<"primary/v4">>} = Machine, Context) ->
+    dmt_api_repository_v4:process_signal(Signal, Machine, Context);
+process_signal(Signal, #mg_stateproc_Machine{ns = ?NS, id = <<"primary/v5">>} = Machine, Context) ->
     dmt_api_repository_v5:process_signal(Signal, Machine, Context).
 
 process_signal_({init, #mg_stateproc_InitSignal{}}, _Machine, _Context) ->
@@ -124,6 +124,13 @@ get_migration_settings() ->
 is_migration_finished(Context) ->
     AuxState = get_aux_state(get_machine(Context)),
     maps:get(is_finished, AuxState).
+
+is_safe_to_commit(Version, Context) ->
+    AuxState = get_aux_state(get_machine(Context)),
+    LastMigratedVersion = maps:get(version, AuxState),
+    Gap = maps:get(read_only_gap, get_migration_settings()),
+    % Well, I suppose it is impossible to migrate `Gap` commits until this call will end.
+    LastMigratedVersion + Gap < Version.
 
 get_machine(Context) ->
     case dmt_api_automaton_client:get_machine(?NS, ?ID, Context) of
