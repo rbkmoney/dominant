@@ -131,10 +131,13 @@ get_history_by_range(HistoryRange, Context) ->
 -spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
     {dmt_api_automaton_handler:response(), dmt_api_automaton_handler:events()} | no_return().
 
-process_call(Call, Machine, Context) ->
+process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context) ->
     Args = decode_call(Call),
     {Result, Events} = handle_call(Args, read_history(Machine), Context),
-    {encode_call_result(Result), encode_events(Events)}.
+    {encode_call_result(Result), encode_events(Events)};
+process_call(_Call, #mg_stateproc_Machine{ns = NS, id = ID}, _Context) ->
+    Message = <<"Unknown machine '", NS/binary, "' '", ID/binary,"'">>,
+    woody_error:raise(system, {internal, resource_unavailable, Message}).
 
 -spec process_signal(dmt_api_automaton_handler:signal(), machine(), context()) ->
     {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
