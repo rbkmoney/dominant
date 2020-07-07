@@ -129,7 +129,7 @@ is_safe_to_commit(Version, Context) ->
     AuxState = get_aux_state(get_machine(Context)),
     LastMigratedVersion = maps:get(version, AuxState),
     Gap = maps:get(read_only_gap, get_migration_settings()),
-    % Well, I suppose it is imposible to migrate `Gap` commits until this call will end.
+    % Well, I suppose it is impossible to migrate `Gap` commits until this call will end.
     LastMigratedVersion + Gap < Version.
 
 get_machine(Context) ->
