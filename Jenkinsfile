@@ -18,11 +18,5 @@ build('dominant', 'docker-host', finalHook) {
     pipeErlangService = load("${env.JENKINS_LIB}/pipeErlangService.groovy")
   }
 
-  runStage('submodules') {
-    withGithubPrivkey {
-      sh 'make submodules'
-    }
-  }
-
   pipeErlangService.runPipe(true, true)
 }
