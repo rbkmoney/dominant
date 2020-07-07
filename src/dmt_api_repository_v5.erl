@@ -16,8 +16,6 @@
 -export([pull/3]).
 -export([commit/3]).
 
--export([internal_commit/3]).
-
 %% State processor
 
 -behaviour(dmt_api_automaton_handler).
@@ -112,22 +110,6 @@ commit(Version, Commit, Context) ->
         Context
     )).
 
--spec internal_commit(dmt_api_repository:version(), [commit()], context()) ->
-    ok |
-    {error, version_not_found | {operation_error, dmt_domain:operation_error()}}.
-
-internal_commit(Version, Commits, Context) ->
-    BaseID = get_event_id(get_base_version(Version)),
-    decode_call_result(dmt_api_automaton_client:call(
-        ?NS,
-        ?ID,
-        %% TODO in theory, it's enought ?BASE + 1 events here,
-        %% but it's complicated and needs to be covered by tests
-        #mg_stateproc_HistoryRange{'after' = BaseID},
-        encode_call({internal_commit, Version, Commits}),
-        Context
-    )).
-
 %%
 
 -spec get_history_by_range(history_range(), context()) ->
@@ -170,8 +152,6 @@ process_signal(_Signal, #mg_stateproc_Machine{ns = NS, id = ID}, _Context) ->
 
 %%
 
-handle_call({internal_commit, Version, Commits}, St, Context) ->
-    handle_internal_commit(Version, Commits, St, Context, []);
 handle_call({commit, Version, Commit}, St, _Context) ->
     case squash_state(St) of
         {ok, #'Snapshot'{version = Version} = Snapshot} ->
@@ -181,17 +161,6 @@ handle_call({commit, Version, Commit}, St, _Context) ->
             check_commit(Version, Commit, St);
         {ok, _} ->
             {{error, head_mismatch}, []}
-    end.
-
-handle_internal_commit(_Version, [], _St, _Context, Events) ->
-    {ok, Events};
-handle_internal_commit(Version, [Commit | CommitsTail], St, Context, Events) ->
-    case handle_call({commit, Version, Commit}, St, Context) of
-        {{ok, Snapshot}, NewEvents} ->
-            NewSt = #st{snapshot = Snapshot},
-            handle_internal_commit(Version + 1, CommitsTail, NewSt, Context, Events ++ NewEvents);
-        {{error, _Reason} = Error, _NewEvents} ->
-            {Error, []}
     end.
 
 apply_commit(#'Snapshot'{version = VersionWas, domain = DomainWas}, #'Commit'{ops = Ops} = Commit) ->
@@ -290,27 +259,17 @@ decode_commit_meta(1, {obj, #{}}) ->
 
 %%
 
-encode_call({internal_commit, Version, Commits}) ->
-    EncodedCommits = [encode(commit, Commit) || Commit <- Commits],
-    {arr, [{str, <<"internal_commit">>}, {i, Version}, {arr, EncodedCommits}]};
 encode_call({commit, Version, Commit}) ->
     {arr, [{str, <<"commit">>}, {i, Version}, encode(commit, Commit)]}.
 
-decode_call({arr, [{str, <<"internal_commit">>}, {i, Version}, {arr, EncodedCommits}]}) ->
-    Commit = [decode(commit, EncodedCommit) || EncodedCommit <- EncodedCommits],
-    {internal_commit, Version, Commit};
 decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
     {commit, Version, decode(commit, Commit)}.
 
-encode_call_result(ok) ->
-    {arr, [{str, <<"ok">> }]};
 encode_call_result({ok, Snapshot}) ->
     {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};
 encode_call_result({error, Reason}) ->
     {arr, [{str, <<"err">>}, {bin, term_to_binary(Reason)}]}.
 
-decode_call_result({arr, [{str, <<"ok">> }]}) ->
-    ok;
 decode_call_result({arr, [{str, <<"ok">> }, Snapshot]}) ->
     {ok, decode(snapshot, Snapshot)};
 decode_call_result({arr, [{str, <<"err">>}, {bin, Reason}]}) ->
