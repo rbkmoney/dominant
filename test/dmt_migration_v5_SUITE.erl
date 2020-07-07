@@ -17,6 +17,7 @@
 -export([provider_terms_rewriting_test/1]).
 -export([terminal_terms_rewriting_test/1]).
 -export([institution_provider_rewriting_test/1]).
+-export([institution_provider_undefined_rewriting_test/1]).
 -export([withdrawal_provider_add_test/1]).
 -export([p2p_provider_add_test/1]).
 -export([cash_reg_provider_add_test/1]).
@@ -45,6 +46,7 @@ groups() ->
             provider_terms_rewriting_test,
             terminal_terms_rewriting_test,
             institution_provider_rewriting_test,
+            institution_provider_undefined_rewriting_test,
             withdrawal_provider_add_test,
             p2p_provider_add_test,
             cash_reg_provider_add_test
@@ -197,6 +199,34 @@ institution_provider_rewriting_test(_C) ->
                     then_ = {value, [#domain_ProviderRef{id = 401}]}
                 }
             ]}
+        }
+    },
+    ?assertEqual(Expected, checkout({payment_institution, Ref}, Version0)),
+    ?assertEqual(Expected, checkout({payment_institution, Ref}, Version1)),
+    ok = stop(Apps1).
+
+-spec institution_provider_undefined_rewriting_test(term()) -> term().
+institution_provider_undefined_rewriting_test(_C) ->
+    Apps0 = start_with_repository(dmt_api_repository_v4),
+    Ref = #domain_PaymentInstitutionRef{id = next_id()},
+    Data0 = #domain_PaymentInstitution{
+        name = <<"Brovider">>,
+        system_account_set = {value, prepare_system_account_set()},
+        default_contract_template = {value, prepare_contract_template()},
+        inspector = {value, prepare_inspector()},
+        realm = test,
+        residences = [],
+        withdrawal_providers_legacy = undefined,
+        p2p_providers_legacy = undefined
+    },
+    Object0 = {payment_institution, #domain_PaymentInstitutionObject{ref = Ref, data = Data0}},
+    Version0 = insert(Object0),
+    {Version1, Apps1} = migrate(Version0, Apps0),
+    Expected = #domain_PaymentInstitutionObject{
+        ref = Ref,
+        data = Data0#domain_PaymentInstitution{
+            withdrawal_providers = undefined,
+            p2p_providers = undefined
         }
     },
     ?assertEqual(Expected, checkout({payment_institution, Ref}, Version0)),
