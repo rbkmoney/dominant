@@ -36,7 +36,6 @@
 -spec all() -> [{group, group_name()}].
 all() ->
     [
-        {group, basic_lifecycle_v3},
         {group, basic_lifecycle_v4},
         {group, migration_to_v5},
         {group, basic_lifecycle_v5}
@@ -45,20 +44,16 @@ all() ->
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
 groups() ->
     [
-        {basic_lifecycle_v3, [sequence], [
-            pull_commit,
-            {group, basic_lifecycle}
-        ]},
         {basic_lifecycle_v4, [sequence], [
             pull_commit,
             {group, basic_lifecycle},
-            % {group, error_mapping},
+            {group, error_mapping},
             retry_commit
         ]},
         {basic_lifecycle_v5, [sequence], [
             pull_commit,
             {group, basic_lifecycle},
-            % {group, error_mapping},
+            {group, error_mapping},
             retry_commit
         ]},
         {basic_lifecycle, [sequence, {repeat, 10}, shuffle], [
@@ -90,8 +85,6 @@ end_per_suite(C) ->
     genlib_app:stop_unload_applications(?config(suite_apps, C)).
 
 -spec init_per_group(group_name(), config()) -> config().
-init_per_group(basic_lifecycle_v3, C) ->
-    [{group_apps, start_with_repository(dmt_api_repository_v3) ++ start_client()} | C];
 init_per_group(basic_lifecycle_v4, C) ->
     [{group_apps, start_with_repository(dmt_api_repository_v4) ++ start_client()} | C];
 init_per_group(basic_lifecycle_v5, C) ->
@@ -141,7 +134,6 @@ start_client() ->
 
 -spec end_per_group(group_name(), config()) -> term().
 end_per_group(Group, C) when
-    Group =:= basic_lifecycle_v3 orelse
     Group =:= basic_lifecycle_v4 orelse
     Group =:= basic_lifecycle_v5 orelse
     Group =:= migration_to_v5
