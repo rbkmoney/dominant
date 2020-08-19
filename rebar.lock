@@ -30,7 +30,7 @@
   2},
  {<<"genlib">>,
   {git,"https://github.com/rbkmoney/genlib.git",
-       {ref,"54920e768a71f121304a5eda547ee60295398f3c"}},
+       {ref,"1ca08793ad8af0beb26eda8cd00687c69f7ef8b4"}},
   0},
  {<<"gproc">>,{pkg,<<"gproc">>,<<"0.8.0">>},1},
  {<<"hackney">>,{pkg,<<"hackney">>,<<"1.15.2">>},1},
