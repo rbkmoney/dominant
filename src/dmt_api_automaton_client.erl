@@ -88,7 +88,7 @@ construct_descriptor(NS, ID, HistoryRange) ->
         range = HistoryRange
     }.
 
--spec issue_rpc(atom(), list(term()), context()) ->
+-spec issue_rpc(woody:func(), woody:args(), context()) ->
     term() | no_return().
 issue_rpc(Method, Args, Context) ->
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},
