@@ -32,7 +32,7 @@ call(NS, ID, Args, Context) ->
     no_return().
 call(NS, ID, HistoryRange, Args, Context) ->
     Descriptor = construct_descriptor(NS, ID, HistoryRange),
-    case issue_rpc('Call', [Descriptor, Args], Context) of
+    case issue_rpc('Call', {Descriptor, Args}, Context) of
         {ok, Result} ->
             Result;
         {error, #'mg_stateproc_MachineNotFound'{}} ->
@@ -46,7 +46,7 @@ call(NS, ID, HistoryRange, Args, Context) ->
     no_return().
 get_machine(NS, ID, Context) ->
     Descriptor = construct_descriptor(NS, ID, #'mg_stateproc_HistoryRange'{}),
-    case issue_rpc('GetMachine', [Descriptor], Context) of
+    case issue_rpc('GetMachine', {Descriptor}, Context) of
         {ok, #'mg_stateproc_Machine'{} = Machine} ->
             {ok, Machine};
         {error, _} = Error ->
@@ -62,7 +62,7 @@ get_machine(NS, ID, Context) ->
     no_return().
 get_history(NS, ID, HistoryRange, Context) ->
     Descriptor = construct_descriptor(NS, ID, HistoryRange),
-    case issue_rpc('GetMachine', [Descriptor], Context) of
+    case issue_rpc('GetMachine', {Descriptor}, Context) of
         {ok, #'mg_stateproc_Machine'{history = History}} ->
             {ok, History};
         {error, _} = Error ->
@@ -72,7 +72,7 @@ get_history(NS, ID, HistoryRange, Context) ->
 -spec start(ns(), id(), context()) ->
     ok | no_return().
 start(NS, ID, Context) ->
-    case issue_rpc('Start', [NS, ID, {nl, #mg_msgpack_Nil{}}], Context) of
+    case issue_rpc('Start', {NS, ID, {nl, #mg_msgpack_Nil{}}}, Context) of
         {ok, _} ->
             ok;
         {error, #'mg_stateproc_MachineAlreadyExists'{}} ->
@@ -88,7 +88,7 @@ construct_descriptor(NS, ID, HistoryRange) ->
         range = HistoryRange
     }.
 
--spec issue_rpc(atom(), list(term()), context()) ->
+-spec issue_rpc(woody:func(), woody:args(), context()) ->
     term() | no_return().
 issue_rpc(Method, Args, Context) ->
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, Method, Args},

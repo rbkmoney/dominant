@@ -37,7 +37,7 @@ handle_function(Function, Args, WoodyContext0, Options) ->
         {ok, dmt_api_repository:history()} | no_return();
     ('Pull', woody:args(), context(), woody:options()) ->
         {ok, dmt_api_repository:history()} | no_return().
-do_handle_function('Commit', [Version, Commit], Context, Options) ->
+do_handle_function('Commit', {Version, Commit}, Context, Options) ->
     case dmt_api_repository:commit(Version, Commit, repository(Options), Context) of
         {ok, VersionNext} ->
             {ok, VersionNext};
@@ -50,14 +50,14 @@ do_handle_function('Commit', [Version, Commit], Context, Options) ->
         {error, migration_in_progress} ->
             woody_error:raise(system, {internal, resource_unavailable, <<"Migration in progress. Please, stand by.">>})
     end;
-do_handle_function('Checkout', [Reference], Context, Options) ->
+do_handle_function('Checkout', {Reference}, Context, Options) ->
     case dmt_api_repository:checkout(Reference, repository(Options), Context) of
         {ok, Snapshot} ->
             {ok, Snapshot};
         {error, version_not_found} ->
             woody_error:raise(business, #'VersionNotFound'{})
     end;
-do_handle_function('PullRange', [After, Limit], Context, Options) ->
+do_handle_function('PullRange', {After, Limit}, Context, Options) ->
     case dmt_api_repository:pull(After, Limit, repository(Options), Context) of
         {ok, History} ->
             {ok, History};
@@ -65,7 +65,7 @@ do_handle_function('PullRange', [After, Limit], Context, Options) ->
             woody_error:raise(business, #'VersionNotFound'{})
     end;
 %% depreceted, will be removed soon
-do_handle_function('Pull', [Version], Context, Options) ->
+do_handle_function('Pull', {Version}, Context, Options) ->
     case dmt_api_repository:pull(Version, undefined, repository(Options), Context) of
         {ok, History} ->
             {ok, History};

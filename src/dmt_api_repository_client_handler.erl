@@ -19,7 +19,7 @@
 -spec handle_function
     ('checkoutObject', woody:args(), context(), options()) ->
         {ok, dmsl_domain_config_thrift:'VersionedObject'()} | no_return().
-handle_function('checkoutObject', [Reference, ObjectReference], Context0, Options) ->
+handle_function('checkoutObject', {Reference, ObjectReference}, Context0, Options) ->
     DefaultDeadline = woody_deadline:from_timeout(default_handling_timeout(Options)),
     Context = dmt_api_woody_utils:ensure_woody_deadline_set(Context0, DefaultDeadline),
     case dmt_api_repository:checkout_object(Reference, ObjectReference, repository(Options), Context) of
