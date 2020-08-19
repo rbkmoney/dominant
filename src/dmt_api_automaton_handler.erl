@@ -36,11 +36,11 @@
 -spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
     {ok, woody:result()} | no_return().
 
-handle_function('ProcessCall', [#mg_stateproc_CallArgs{arg = Payload, machine = Machine}], Context, Handler) ->
+handle_function('ProcessCall', {#mg_stateproc_CallArgs{arg = Payload, machine = Machine}}, Context, Handler) ->
     Result = Handler:process_call(Payload, Machine, Context),
     {ok, construct_call_result(Result)};
 
-handle_function('ProcessSignal', [#mg_stateproc_SignalArgs{signal = Signal, machine = Machine}], Context, Handler) ->
+handle_function('ProcessSignal', {#mg_stateproc_SignalArgs{signal = Signal, machine = Machine}}, Context, Handler) ->
     Result = Handler:process_signal(Signal, Machine, Context),
     {ok, construct_signal_result(Result)}.
 
