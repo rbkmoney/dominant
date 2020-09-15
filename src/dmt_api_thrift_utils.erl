@@ -12,6 +12,11 @@
     (msgpack, thrift_type(), thrift_value()) ->
         dmsl_msgpack_thrift:'Value'().
 
+encode(binary, Type, Value) ->
+    Codec0 = thrift_strict_binary_codec:new(),
+    {ok, Codec} = thrift_strict_binary_codec:write(Codec0, Type, Value),
+    Data = thrift_strict_binary_codec:close(Codec),
+    Data;
 encode(Proto, Type, Value) ->
     {ok, Proto0} = new_protocol(Proto),
     {Proto1, ok} = thrift_protocol:write(Proto0, {Type, Value}),
@@ -24,6 +29,11 @@ encode(Proto, Type, Value) ->
     (msgpack, thrift_type(), dmsl_msgpack_thrift:'Value'()) ->
         thrift_value().
 
+decode(binary, Type, Data) ->
+    Codec = thrift_strict_binary_codec:new(Data),
+    {ok, Value, Leftovers} = thrift_strict_binary_codec:read(Codec, Type),
+    <<>> = thrift_strict_binary_codec:close(Leftovers),
+    Value;
 decode(Proto, Type, Data) ->
     {ok, Proto0} = new_protocol(Proto, Data),
     {_Proto, {ok, Value}} = thrift_protocol:read(Proto0, Type),
