@@ -19,7 +19,7 @@ BASE_IMAGE_TAG := 37c294de80c2ff7cd732f9b367914532fd662539
 # Build image tag to be used
 BUILD_IMAGE_TAG := 07d3946f8f005782697de20270ac58cdcd18b011
 
-CALL_ANYWHERE := all submodules compile xref lint dialyze start devrel release clean distclean
+CALL_ANYWHERE := all submodules compile xref lint dialyze start devrel release clean distclean check_format format
 
 CALL_W_CONTAINER := $(CALL_ANYWHERE) test
 
@@ -45,6 +45,12 @@ xref: submodules
 
 lint:
 	elvis rock
+
+check_format:
+	$(REBAR) fmt -c
+
+format:
+	$(REBAR) fmt -w
 
 dialyze:
 	$(REBAR) dialyzer

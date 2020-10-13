@@ -1,15 +1,19 @@
 -module(dmt_api_repository_migration).
+
 -behaviour(dmt_api_repository).
 
 -include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
--define(NS  , <<"domain-config">>).
--define(ID  , <<"migration/v4_to_v5">>).
+-define(NS, <<"domain-config">>).
+-define(ID, <<"migration/v4_to_v5">>).
 -define(DEFAULT_MIGRATION_SETTINGS, #{
-    timeout => 360, % lagre enought, that we can process butch of old events
-    limit => 20,   % 2xBASE, maybe even less
-    read_only_gap => 1000  % make config read-only near of the migration end
+    % lagre enought, that we can process butch of old events
+    timeout => 360,
+    % 2xBASE, maybe even less
+    limit => 20,
+    % make config read-only near of the migration end
+    read_only_gap => 1000
 }).
 
 %% API
@@ -28,17 +32,16 @@
 
 %%
 
--type context()         :: woody_context:ctx().
--type machine()         :: mg_proto_state_processing_thrift:'Machine'().
+-type context() :: woody_context:ctx().
+-type machine() :: mg_proto_state_processing_thrift:'Machine'().
 
--type ref()             :: dmsl_domain_config_thrift:'Reference'().
--type snapshot()        :: dmt_api_repository:snapshot().
--type commit()          :: dmt_api_repository:commit().
+-type ref() :: dmsl_domain_config_thrift:'Reference'().
+-type snapshot() :: dmt_api_repository:snapshot().
+-type commit() :: dmt_api_repository:commit().
 
 -spec checkout(ref(), context()) ->
-    {ok, snapshot()} |
-    {error, version_not_found}.
-
+    {ok, snapshot()}
+    | {error, version_not_found}.
 checkout(Ref, Context) ->
     case is_migration_finished(Context) of
         true ->
@@ -48,16 +51,14 @@ checkout(Ref, Context) ->
     end.
 
 -spec pull(dmt_api_repository:version(), context()) ->
-    {ok, dmt_api_repository:history()} |
-    {error, version_not_found}.
-
+    {ok, dmt_api_repository:history()}
+    | {error, version_not_found}.
 pull(Version, Context) ->
-        pull(Version, undefined, Context).
+    pull(Version, undefined, Context).
 
 -spec pull(dmt_api_repository:version(), dmt_api_repository:limit(), context()) ->
-    {ok, dmt_api_repository:history()} |
-    {error, version_not_found}.
-
+    {ok, dmt_api_repository:history()}
+    | {error, version_not_found}.
 pull(Version, Limit, Context) ->
     case is_migration_finished(Context) of
         true ->
@@ -67,9 +68,8 @@ pull(Version, Limit, Context) ->
     end.
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
-    {ok, snapshot()} |
-    {error, version_not_found | migration_in_progress | {operation_error, dmt_domain:operation_error()}}.
-
+    {ok, snapshot()}
+    | {error, version_not_found | migration_in_progress | {operation_error, dmt_domain:operation_error()}}.
 commit(Version, Commit, Context) ->
     case is_migration_finished(Context) of
         true ->
@@ -87,7 +87,6 @@ commit(Version, Commit, Context) ->
 
 -spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
     {dmt_api_automaton_handler:response(), dmt_api_automaton_handler:events()} | no_return().
-
 process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context) ->
     process_call_(Call, Machine, Context);
 process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = <<"primary/v4">>} = Machine, Context) ->
@@ -101,9 +100,8 @@ process_call_(_Call, _Machine, _Context) ->
     error({migrating, migration_in_progress}).
 
 -spec process_signal(dmt_api_automaton_handler:signal(), machine(), context()) ->
-    {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:aux_state(), dmt_api_automaton_handler:events()} |
-    no_return().
-
+    {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:aux_state(), dmt_api_automaton_handler:events()}
+    | no_return().
 process_signal(Signal, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context) ->
     process_signal_(Signal, Machine, Context);
 process_signal(Signal, #mg_stateproc_Machine{ns = ?NS, id = <<"primary/v4">>} = Machine, Context) ->
@@ -152,12 +150,13 @@ continue_migration(#{version := Version, is_finished := true} = State, _Context)
 continue_migration(#{version := Version, is_finished := false} = OldState, Context) ->
     Limit = maps:get(limit, get_migration_settings()),
     _ = logger:info(<<"Migrating events from ~p to ~p">>, [Version, Version + Limit]),
-    NewState = case dmt_api_repository_v4:pull(Version, Limit, Context) of
-        {ok, History} when map_size(History) > 0 ->
-            OldState#{version => try_migrate_history(Version, History, Context)};
-        {ok, _EmptyHistory} ->
-            OldState#{is_finished := true}
-    end,
+    NewState =
+        case dmt_api_repository_v4:pull(Version, Limit, Context) of
+            {ok, History} when map_size(History) > 0 ->
+                OldState#{version => try_migrate_history(Version, History, Context)};
+            {ok, _EmptyHistory} ->
+                OldState#{is_finished := true}
+        end,
     {construct_set_timer_action(), set_aux_state(NewState), []}.
 
 try_migrate_history(Version, History, Context) ->
@@ -176,11 +175,12 @@ try_migrate_history(Version, History, Context) ->
 construct_set_timer_action() ->
     MigrationSettings = get_migration_settings(),
     #mg_stateproc_ComplexAction{
-        timer = {set_timer, #mg_stateproc_SetTimerAction{
-            timer = {timeout, 0},
-            range = #mg_stateproc_HistoryRange{},
-            timeout = maps:get(timeout, MigrationSettings)
-        }}
+        timer =
+            {set_timer, #mg_stateproc_SetTimerAction{
+                timer = {timeout, 0},
+                range = #mg_stateproc_HistoryRange{},
+                timeout = maps:get(timeout, MigrationSettings)
+            }}
     }.
 
 set_aux_state(AuxState) ->
@@ -196,10 +196,13 @@ encode_aux_state(1, #{version := Version, is_finished := IsFinished}) ->
 get_aux_state(#mg_stateproc_Machine{aux_state = #mg_stateproc_Content{format_version = Version, data = AuxState}}) ->
     decode_aux_state(Version, AuxState).
 
-decode_aux_state(1, {obj, #{
-    {str, <<"version">>} := {i, Version},
-    {str, <<"is_finished">>} := {b, IsFinished}
-}}) ->
+decode_aux_state(
+    1,
+    {obj, #{
+        {str, <<"version">>} := {i, Version},
+        {str, <<"is_finished">>} := {b, IsFinished}
+    }}
+) ->
     #{version => Version, is_finished => IsFinished}.
 
 migrate_commit(#'Commit'{ops = Ops} = Commit) ->

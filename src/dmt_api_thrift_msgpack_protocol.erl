@@ -20,10 +20,10 @@
 }).
 
 -type production() ::
-    [] |
-    value() |
-    {array, [production()], value()} |
-    {map, none | value(), [{value(), value()}] | #{value() => value()}, value()}.
+    []
+    | value()
+    | {array, [production()], value()}
+    | {map, none | value(), [{value(), value()}] | #{value() => value()}, value()}.
 
 -type value() :: dmsl_msgpack_thrift:'Value'().
 
@@ -31,13 +31,13 @@
 
 -include_lib("thrift/include/thrift_protocol_behaviour.hrl").
 
--spec new() -> term(). % FIXME
-
+% FIXME
+-spec new() -> term().
 new() ->
     new([]).
 
--spec new(production()) -> term(). % FIXME
-
+% FIXME
+-spec new(production()) -> term().
 new(Production) ->
     State = #msgpack_protocol{production = Production},
     thrift_protocol:new(?MODULE, State).
@@ -52,22 +52,22 @@ close_transport(This = #msgpack_protocol{production = Production}) ->
 %%% instance methods
 %%%
 
-typeid_to_string(?tType_BOOL)   -> <<"bool">>;
+typeid_to_string(?tType_BOOL) -> <<"bool">>;
 typeid_to_string(?tType_DOUBLE) -> <<"dbl">>;
-typeid_to_string(?tType_I8)     -> <<"i8">>;
-typeid_to_string(?tType_I16)    -> <<"i16">>;
-typeid_to_string(?tType_I32)    -> <<"i32">>;
-typeid_to_string(?tType_I64)    -> <<"i64">>;
+typeid_to_string(?tType_I8) -> <<"i8">>;
+typeid_to_string(?tType_I16) -> <<"i16">>;
+typeid_to_string(?tType_I32) -> <<"i32">>;
+typeid_to_string(?tType_I64) -> <<"i64">>;
 typeid_to_string(?tType_STRING) -> <<"str">>;
 typeid_to_string(?tType_STRUCT) -> <<"struct">>;
-typeid_to_string(?tType_MAP)    -> <<"map">>;
-typeid_to_string(?tType_SET)    -> <<"set">>;
-typeid_to_string(?tType_LIST)   -> <<"list">>.
+typeid_to_string(?tType_MAP) -> <<"map">>;
+typeid_to_string(?tType_SET) -> <<"set">>;
+typeid_to_string(?tType_LIST) -> <<"list">>.
 
--define(str(V)  , {str , V}).
--define(int(V)  , {  i , V}).
--define(flt(V)  , {flt , V}).
--define(bool(V) , {  b , V}).
+-define(str(V), {str, V}).
+-define(int(V), {i, V}).
+-define(flt(V), {flt, V}).
+-define(bool(V), {b, V}).
 
 write(This, #protocol_message_begin{name = Name, type = Type, seqid = Seqid}) ->
     do_write_many(This, [
@@ -78,12 +78,10 @@ write(This, #protocol_message_begin{name = Name, type = Type, seqid = Seqid}) ->
     ]);
 write(This, message_end) ->
     do_write(This, {exit, array});
-
 write(This, #protocol_struct_begin{}) ->
     do_write(This, {enter, map});
 write(This, struct_end) ->
     {This, ok};
-
 write(This, #protocol_field_begin{name = Name, type = Type, id = Id}) ->
     do_write_many(This, [
         ?str(genlib:to_binary(Name)),
@@ -93,10 +91,8 @@ write(This, #protocol_field_begin{name = Name, type = Type, id = Id}) ->
     ]);
 write(This, field_end) ->
     do_write(This, {exit, array});
-
 write(This, field_stop) ->
     do_write(This, {exit, map});
-
 write(This, #protocol_map_begin{ktype = Ktype, vtype = Vtype, size = Size}) ->
     do_write_many(This, [
         {enter, array},
@@ -112,7 +108,6 @@ write(This, map_end) ->
         {exit, map},
         {exit, array}
     ]);
-
 write(This, #protocol_list_begin{etype = Etype, size = Size}) ->
     do_write_many(This, [
         {enter, array},
@@ -121,15 +116,12 @@ write(This, #protocol_list_begin{etype = Etype, size = Size}) ->
     ]);
 write(This, list_end) ->
     do_write(This, {exit, array});
-
 write(This, #protocol_set_begin{etype = Etype, size = Size}) ->
     write(This, #protocol_list_begin{etype = Etype, size = Size});
 write(This, set_end) ->
     write(This, list_end);
-
 write(This, {bool, V}) ->
     do_write(This, ?bool(V));
-
 write(This, {byte, Byte}) ->
     do_write(This, ?int(Byte));
 write(This, {i16, I16}) ->
@@ -138,10 +130,8 @@ write(This, {i32, I32}) ->
     do_write(This, ?int(I32));
 write(This, {i64, I64}) ->
     do_write(This, ?int(I64));
-
 write(This, {double, Double}) ->
     do_write(This, ?flt(Double));
-
 write(This, {string, Bin}) when is_binary(Bin) ->
     % FIXME nonprintable?
     do_write(This, ?str(Bin)).
@@ -163,36 +153,32 @@ write_val(Production, {enter, array}) ->
     {array, [], Production};
 write_val({array, Vs, Production}, {exit, array}) ->
     write_val(Production, {arr, lists:reverse(Vs)});
-
 write_val(Production, {enter, map}) ->
     {map, none, #{}, Production};
 write_val({map, none, Vs, Production}, {exit, map}) ->
     write_val(Production, {obj, Vs});
-
 write_val({array, Vs, Production}, V) ->
     {array, [V | Vs], Production};
-
 write_val({map, none, Vs, Production}, K) ->
     {map, K, Vs, Production};
 write_val({map, K, Vs, Production}, V) ->
     {map, none, Vs#{K => V}, Production};
-
 write_val([], V) ->
     V.
 
 %%
 
-string_to_typeid(<<"bool">>)    -> ?tType_BOOL;
-string_to_typeid(<<"dbl">>)     -> ?tType_DOUBLE;
-string_to_typeid(<<"i8">>)      -> ?tType_I8;
-string_to_typeid(<<"i16">>)     -> ?tType_I16;
-string_to_typeid(<<"i32">>)     -> ?tType_I32;
-string_to_typeid(<<"i64">>)     -> ?tType_I64;
-string_to_typeid(<<"str">>)     -> ?tType_STRING;
-string_to_typeid(<<"struct">>)  -> ?tType_STRUCT;
-string_to_typeid(<<"map">>)     -> ?tType_MAP;
-string_to_typeid(<<"set">>)     -> ?tType_SET;
-string_to_typeid(<<"list">>)    -> ?tType_LIST.
+string_to_typeid(<<"bool">>) -> ?tType_BOOL;
+string_to_typeid(<<"dbl">>) -> ?tType_DOUBLE;
+string_to_typeid(<<"i8">>) -> ?tType_I8;
+string_to_typeid(<<"i16">>) -> ?tType_I16;
+string_to_typeid(<<"i32">>) -> ?tType_I32;
+string_to_typeid(<<"i64">>) -> ?tType_I64;
+string_to_typeid(<<"str">>) -> ?tType_STRING;
+string_to_typeid(<<"struct">>) -> ?tType_STRUCT;
+string_to_typeid(<<"map">>) -> ?tType_MAP;
+string_to_typeid(<<"set">>) -> ?tType_SET;
+string_to_typeid(<<"list">>) -> ?tType_LIST.
 
 read(This, message_begin) ->
     {This1, {ok, [Name, Type, SeqId]}} = do_read_many(This, [
@@ -204,12 +190,10 @@ read(This, message_begin) ->
     {This1, #protocol_message_begin{name = binary_to_list(Name), type = Type, seqid = SeqId}};
 read(This, message_end) ->
     do_read(This, {exit, array});
-
 read(This, struct_begin) ->
     do_read(This, {enter, map});
 read(This, struct_end) ->
     do_read(This, {exit, map});
-
 read(This0, field_begin) ->
     case do_read(This0, str) of
         {This1, {ok, Name}} ->
@@ -220,7 +204,6 @@ read(This0, field_begin) ->
     end;
 read(This0, field_end) ->
     do_read(This0, {exit, array});
-
 read(This0, map_begin) ->
     {This1, {ok, [Ktype, Vtype, Size]}} = do_read_many(This0, [
         {enter, array},
@@ -238,7 +221,6 @@ read(This0, map_begin) ->
     }};
 read(This, map_end) ->
     do_read_many(This, [{exit, map}, {exit, array}]);
-
 read(This0, list_begin) ->
     {This1, {ok, [Etype, Size]}} = do_read_many(This0, [
         {enter, array},
@@ -251,19 +233,15 @@ read(This0, list_begin) ->
     }};
 read(This0, list_end) ->
     do_read(This0, {exit, array});
-
 read(This0, set_begin) ->
     {This1, #protocol_list_begin{etype = Etype, size = Size}} = read(This0, list_begin),
     {This1, #protocol_set_begin{etype = Etype, size = Size}};
 read(This0, set_end) ->
     read(This0, list_end);
-
 read(This0, field_stop) ->
     {This0, ok};
-
 read(This0, bool) ->
     do_read(This0, bool);
-
 read(This0, byte) ->
     do_read(This0, int);
 read(This0, i16) ->
@@ -272,10 +250,8 @@ read(This0, i32) ->
     do_read(This0, int);
 read(This0, i64) ->
     do_read(This0, int);
-
 read(This0, double) ->
     do_read(This0, flt);
-
 read(This0, string) ->
     do_read(This0, str).
 
@@ -314,7 +290,6 @@ read_val(Production, {enter, array}) ->
     end;
 read_val({array, [], Rest}, {exit, array}) ->
     {Rest, ok};
-
 read_val(Production, {enter, map}) ->
     case read_next(Production) of
         {Rest, {obj, Vs}} ->
@@ -326,7 +301,6 @@ read_val(Production, {enter, map}) ->
     end;
 read_val({map, none, [], Rest}, {exit, map}) ->
     {Rest, ok};
-
 read_val(P0, T) ->
     case read_next(P0) of
         {P1, {error, _} = Error} ->
@@ -339,14 +313,12 @@ read_next({array, [V | Vs], Rest}) ->
     {{array, Vs, Rest}, V};
 read_next({array, [], _} = Production) ->
     {Production, {error, array_exhausted}};
-
 read_next({map, none, [{K, V} | Vs], Rest}) ->
     {{map, V, Vs, Rest}, K};
 read_next({map, none, [], _} = Production) ->
     {Production, {error, object_exhausted}};
 read_next({map, V, Vs, Rest}) ->
     {{map, none, Vs, Rest}, V};
-
 read_next(V) ->
     {[], V}.
 

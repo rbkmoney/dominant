@@ -1,4 +1,5 @@
 -module(dmt_api).
+
 -behaviour(application).
 -behaviour(supervisor).
 
@@ -9,19 +10,16 @@
 -export([init/1]).
 
 -spec start(application:start_type(), term()) -> {ok, pid()} | {error, term()}.
-
 start(_StartType, _Args) ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 -spec stop(term()) -> ok.
-
 stop(_State) ->
     ok.
 
 %%
 
 -spec init(any()) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
-
 init(_) ->
     {ok, IP} = inet:parse_address(genlib_app:env(?MODULE, ip, "::")),
     HealthCheck = enable_health_logging(genlib_app:env(?MODULE, health_check, #{})),
@@ -29,12 +27,12 @@ init(_) ->
     API = woody_server:child_spec(
         ?MODULE,
         #{
-            ip             => IP,
-            port           => genlib_app:env(?MODULE, port, 8022),
+            ip => IP,
+            port => genlib_app:env(?MODULE, port, 8022),
             transport_opts => genlib_app:env(?MODULE, transport_opts, #{}),
-            protocol_opts  => genlib_app:env(?MODULE, protocol_opts, #{}),
-            event_handler  => EventHandlers,
-            handlers       => get_repository_handlers(),
+            protocol_opts => genlib_app:env(?MODULE, protocol_opts, #{}),
+            event_handler => EventHandlers,
+            handlers => get_repository_handlers(),
             additional_routes => [
                 erl_health_handle:get_route(HealthCheck)
             ]
@@ -61,7 +59,6 @@ get_repository_handlers() ->
 
 -spec get_handler_spec(repository | repository_client | state_processor, woody:options()) ->
     {Path :: iodata(), {woody:service(), woody:handler(woody:options())}}.
-
 get_handler_spec(repository, Options) ->
     {"/v1/domain/repository", {
         {dmsl_domain_config_thrift, 'Repository'},
@@ -78,9 +75,7 @@ get_handler_spec(state_processor, Options) ->
         {dmt_api_automaton_handler, Options}
     }}.
 
--spec enable_health_logging(erl_health:check()) ->
-    erl_health:check().
-
+-spec enable_health_logging(erl_health:check()) -> erl_health:check().
 enable_health_logging(Check) ->
     EvHandler = {erl_health_event_handler, []},
-    maps:map(fun (_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).
+    maps:map(fun(_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).

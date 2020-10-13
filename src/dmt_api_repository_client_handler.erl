@@ -1,4 +1,5 @@
 -module(dmt_api_repository_client_handler).
+
 -behaviour(woody_server_thrift_handler).
 
 -include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
@@ -16,9 +17,8 @@
 
 -type context() :: woody_context:ctx().
 
--spec handle_function
-    ('checkoutObject', woody:args(), context(), options()) ->
-        {ok, dmsl_domain_config_thrift:'VersionedObject'()} | no_return().
+-spec handle_function('checkoutObject', woody:args(), context(), options()) ->
+    {ok, dmsl_domain_config_thrift:'VersionedObject'()} | no_return().
 handle_function('checkoutObject', {Reference, ObjectReference}, Context0, Options) ->
     DefaultDeadline = woody_deadline:from_timeout(default_handling_timeout(Options)),
     Context = dmt_api_woody_utils:ensure_woody_deadline_set(Context0, DefaultDeadline),
@@ -33,12 +33,10 @@ handle_function('checkoutObject', {Reference, ObjectReference}, Context0, Option
 
 %% Internals
 
--spec repository(options()) ->
-    module().
+-spec repository(options()) -> module().
 repository(#{repository := Repository}) ->
     Repository.
 
--spec default_handling_timeout(options()) ->
-    timeout().
+-spec default_handling_timeout(options()) -> timeout().
 default_handling_timeout(#{default_handling_timeout := Timeout}) ->
     Timeout.

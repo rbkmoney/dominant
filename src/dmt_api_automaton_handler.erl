@@ -16,14 +16,14 @@
 -export_type([aux_state/0]).
 -export_type([events/0]).
 
--type call()        :: mg_proto_state_processing_thrift:'Args'().
--type signal()      :: mg_proto_state_processing_thrift:'Signal'().
--type machine()     :: mg_proto_state_processing_thrift:'Machine'().
--type response()    :: mg_proto_state_processing_thrift:'CallResponse'().
--type action()      :: mg_proto_state_processing_thrift:'ComplexAction'().
--type aux_state()   :: mg_proto_state_processing_thrift:'AuxState'().
--type events()      :: mg_proto_state_processing_thrift:'EventBodies'().
--type context()     :: woody_context:ctx().
+-type call() :: mg_proto_state_processing_thrift:'Args'().
+-type signal() :: mg_proto_state_processing_thrift:'Signal'().
+-type machine() :: mg_proto_state_processing_thrift:'Machine'().
+-type response() :: mg_proto_state_processing_thrift:'CallResponse'().
+-type action() :: mg_proto_state_processing_thrift:'ComplexAction'().
+-type aux_state() :: mg_proto_state_processing_thrift:'AuxState'().
+-type events() :: mg_proto_state_processing_thrift:'EventBodies'().
+-type context() :: woody_context:ctx().
 
 %% State processor
 
@@ -33,13 +33,10 @@
 
 -define(NIL, #mg_stateproc_Content{data = {nl, #mg_msgpack_Nil{}}}).
 
--spec handle_function(woody:func(), woody:args(), context(), woody:options()) ->
-    {ok, woody:result()} | no_return().
-
+-spec handle_function(woody:func(), woody:args(), context(), woody:options()) -> {ok, woody:result()} | no_return().
 handle_function('ProcessCall', {#mg_stateproc_CallArgs{arg = Payload, machine = Machine}}, Context, Handler) ->
     Result = Handler:process_call(Payload, Machine, Context),
     {ok, construct_call_result(Result)};
-
 handle_function('ProcessSignal', {#mg_stateproc_SignalArgs{signal = Signal, machine = Machine}}, Context, Handler) ->
     Result = Handler:process_signal(Signal, Machine, Context),
     {ok, construct_signal_result(Result)}.

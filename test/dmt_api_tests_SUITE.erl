@@ -1,4 +1,5 @@
 -module(dmt_api_tests_SUITE).
+
 -include_lib("common_test/include/ct.hrl").
 -include_lib("stdlib/include/assert.hrl").
 
@@ -28,7 +29,8 @@
 -type config() :: [{atom(), term()}].
 
 -define(config(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
--define(DEFAULT_LIMIT, 9001). % to emulate unlimited polling
+% to emulate unlimited polling
+-define(DEFAULT_LIMIT, 9001).
 
 -type test_case_name() :: atom().
 -type group_name() :: atom().
@@ -94,14 +96,15 @@ init_per_group(migration_to_v5, C) ->
         {repository, dmt_api_repository_migration},
         {migration, #{
             timeout => 360,
-            limit   => 20
+            limit => 20
         }},
         {services, #{
             automaton => #{
-                url =>"http://machinegun:8022/v1/automaton"
+                url => "http://machinegun:8022/v1/automaton"
             }
         }},
-        {max_cache_size, 2048} % 2Kb
+        % 2Kb
+        {max_cache_size, 2048}
     ]),
     [{group_apps, ApiApps ++ start_client()} | C];
 init_per_group(_, C) ->
@@ -112,19 +115,22 @@ start_with_repository(Repository) ->
         {repository, Repository},
         {services, #{
             automaton => #{
-                url =>"http://machinegun:8022/v1/automaton"
+                url => "http://machinegun:8022/v1/automaton"
             }
         }},
-        {max_cache_size, 52428800} % 50Mb
+        % 50Mb
+        {max_cache_size, 52428800}
     ]).
 
 start_client() ->
     genlib_app:start_application_with(dmt_client, [
-        {cache_update_interval, 5000}, % milliseconds
+        % milliseconds
+        {cache_update_interval, 5000},
         {cache_update_pull_limit, ?DEFAULT_LIMIT},
         {max_cache_size, #{
             elements => 20,
-            memory => 52428800 % 50Mb
+            % 50Mb
+            memory => 52428800
         }},
         {service_urls, #{
             'Repository' => <<"http://dominant:8022/v1/domain/repository">>,
@@ -135,8 +141,8 @@ start_client() ->
 -spec end_per_group(group_name(), config()) -> term().
 end_per_group(Group, C) when
     Group =:= basic_lifecycle_v4 orelse
-    Group =:= basic_lifecycle_v5 orelse
-    Group =:= migration_to_v5
+        Group =:= basic_lifecycle_v5 orelse
+        Group =:= migration_to_v5
 ->
     genlib_app:stop_unload_applications(?config(group_apps, C));
 end_per_group(_, _C) ->
@@ -152,6 +158,7 @@ init_per_testcase(_, C) ->
 -spec end_per_testcase(test_case_name(), config()) -> term().
 end_per_testcase(_, _) ->
     ok.
+
 %%
 %% tests
 
@@ -208,18 +215,26 @@ pull_commit(_C) ->
 
 -spec retry_commit(term()) -> term().
 retry_commit(_C) ->
-    Commit1 = #'Commit'{ops = [{insert, #'InsertOp'{
-        object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
-    }}]},
+    Commit1 = #'Commit'{
+        ops = [
+            {insert, #'InsertOp'{
+                object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
+            }}
+        ]
+    },
     #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
     Version2 = dmt_client:commit(Version1, Commit1),
     Version2 = Version1 + 1,
     Version2 = dmt_client:commit(Version1, Commit1),
     _ = dmt_client_cache:update(),
     #'Snapshot'{version = Version2} = dmt_client:checkout({head, #'Head'{}}),
-    Commit2 = #'Commit'{ops = [{insert, #'InsertOp'{
-        object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
-    }}]},
+    Commit2 = #'Commit'{
+        ops = [
+            {insert, #'InsertOp'{
+                object = fixture_domain_object(next_id(), <<"RetryCommitFixture">>)
+            }}
+        ]
+    },
     Version3 = dmt_client:commit(Version2, Commit2),
     Version3 = Version2 + 1,
     Version2 = dmt_client:commit(Version1, Commit1),
@@ -251,56 +266,68 @@ wait_for_migration(_, _, _) ->
 conflict(_C) ->
     #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
     _ = ?assertThrow(
-        #'OperationConflict'{conflict =
-            {object_not_found, #'ObjectNotFoundConflict'{
-                object_ref = {criterion, #domain_CriterionRef{id = 42}}
-            }}
+        #'OperationConflict'{
+            conflict =
+                {object_not_found, #'ObjectNotFoundConflict'{
+                    object_ref = {criterion, #domain_CriterionRef{id = 42}}
+                }}
         },
-        dmt_client:commit(Version1, #'Commit'{ops = [
-            {update, #'UpdateOp'{
-                old_object = criterion_w_refs(42, []),
-                new_object = criterion_w_refs(42, [43, 44, 45])
-            }}
-        ]})
+        dmt_client:commit(Version1, #'Commit'{
+            ops = [
+                {update, #'UpdateOp'{
+                    old_object = criterion_w_refs(42, []),
+                    new_object = criterion_w_refs(42, [43, 44, 45])
+                }}
+            ]
+        })
     ).
 
 -spec nonexistent(term()) -> term().
 nonexistent(_C) ->
     #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
     _ = ?assertThrow(
-        #'OperationInvalid'{errors = [
-            {object_not_exists, #'NonexistantObject'{
-                object_ref = {criterion, #domain_CriterionRef{}},
-                referenced_by = [{criterion, #domain_CriterionRef{id = 42}}]
-            }} | _
-        ]},
-        dmt_client:commit(Version1, #'Commit'{ops = [
-            {insert, #'InsertOp'{object = criterion_w_refs(42, [43, 44, 45])}}
-        ]})
+        #'OperationInvalid'{
+            errors = [
+                {object_not_exists, #'NonexistantObject'{
+                    object_ref = {criterion, #domain_CriterionRef{}},
+                    referenced_by = [{criterion, #domain_CriterionRef{id = 42}}]
+                }}
+                | _
+            ]
+        },
+        dmt_client:commit(Version1, #'Commit'{
+            ops = [
+                {insert, #'InsertOp'{object = criterion_w_refs(42, [43, 44, 45])}}
+            ]
+        })
     ).
 
 -spec reference_cycles(term()) -> term().
 reference_cycles(_C) ->
     #'Snapshot'{version = Version1} = dmt_client:checkout({head, #'Head'{}}),
     _ = ?assertThrow(
-        #'OperationInvalid'{errors = [
-            %% we expect 3 cycles to be found
-            {object_reference_cycle, #'ObjectReferenceCycle'{
-                cycle = [{criterion, #domain_CriterionRef{}} | _]
-            }},
-            {object_reference_cycle, #'ObjectReferenceCycle'{
-                cycle = [{criterion, #domain_CriterionRef{}} | _]
-            }},
-            {object_reference_cycle, #'ObjectReferenceCycle'{
-                cycle = [{criterion, #domain_CriterionRef{}} | _]
-            }}
-        ]},
-        dmt_client:commit(Version1, #'Commit'{ops = [
-            {insert, #'InsertOp'{object = criterion_w_refs(1, [2])}},
-            {insert, #'InsertOp'{object = criterion_w_refs(2, [3])}},
-            {insert, #'InsertOp'{object = criterion_w_refs(3, [4, 1])}},
-            {insert, #'InsertOp'{object = criterion_w_refs(4, [1, 2])}}
-        ]})
+        #'OperationInvalid'{
+            errors = [
+                %% we expect 3 cycles to be found
+                {object_reference_cycle, #'ObjectReferenceCycle'{
+                    cycle = [{criterion, #domain_CriterionRef{}} | _]
+                }},
+                {object_reference_cycle, #'ObjectReferenceCycle'{
+                    cycle = [{criterion, #domain_CriterionRef{}} | _]
+                }},
+                {object_reference_cycle, #'ObjectReferenceCycle'{
+                    cycle = [{criterion, #domain_CriterionRef{}} | _]
+                }}
+            ]
+        },
+        dmt_client:commit(Version1, #'Commit'{
+            ops = [
+                {insert, #'InsertOp'{object = criterion_w_refs(1, [2])}},
+                {insert, #'InsertOp'{object = criterion_w_refs(2, [3])}},
+                {insert, #'InsertOp'{object = criterion_w_refs(3, [4, 1])}},
+                {insert, #'InsertOp'{object = criterion_w_refs(4, [1, 2])}}
+            ]
+        })
     ).
 
 next_id() ->
@@ -320,8 +347,6 @@ criterion_w_refs(ID, Refs) ->
         ref = #domain_CriterionRef{id = ID},
         data = #domain_Criterion{
             name = genlib:format(ID),
-            predicate = {any_of,
-                ordsets:from_list([{criterion, #domain_CriterionRef{id = Ref}} || Ref <- Refs])
-            }
+            predicate = {any_of, ordsets:from_list([{criterion, #domain_CriterionRef{id = Ref}} || Ref <- Refs])}
         }
     }}.

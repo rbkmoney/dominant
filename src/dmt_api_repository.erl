@@ -15,11 +15,11 @@
 -export_type([commit/0]).
 -export_type([history/0]).
 
--type version()  :: dmsl_domain_config_thrift:'Version'().
--type limit()    :: dmsl_domain_config_thrift:'Limit'() | undefined.
+-type version() :: dmsl_domain_config_thrift:'Version'().
+-type limit() :: dmsl_domain_config_thrift:'Limit'() | undefined.
 -type snapshot() :: dmsl_domain_config_thrift:'Snapshot'().
--type commit()   :: dmsl_domain_config_thrift:'Commit'().
--type history()  :: dmsl_domain_config_thrift:'History'().
+-type commit() :: dmsl_domain_config_thrift:'Commit'().
+-type history() :: dmsl_domain_config_thrift:'History'().
 
 -type ref() :: dmsl_domain_config_thrift:'Reference'().
 -type object_ref() :: dmsl_domain_thrift:'Reference'().
@@ -30,20 +30,20 @@
 
 -callback checkout(ref(), context()) ->
     % TODO this was made due to dialyzer warning, can't find the way to fix it
-    {ok, term()} |
-    {error, version_not_found}.
--callback pull(version(), limit(),  context()) ->
-    {ok, history()} |
-    {error, version_not_found}.
+    {ok, term()}
+    | {error, version_not_found}.
+
+-callback pull(version(), limit(), context()) ->
+    {ok, history()}
+    | {error, version_not_found}.
+
 -callback commit(version(), commit(), context()) ->
-    {ok, snapshot()} |
-    {error, version_not_found | migration_in_progress | {operation_error, operation_error()}}.
+    {ok, snapshot()}
+    | {error, version_not_found | migration_in_progress | {operation_error, operation_error()}}.
 
 %%
 
--spec checkout(ref(), repository(), context()) ->
-    {ok, snapshot()} | {error, version_not_found}.
-
+-spec checkout(ref(), repository(), context()) -> {ok, snapshot()} | {error, version_not_found}.
 checkout({head, #'Head'{}} = V, Repository, Context) ->
     case Repository:checkout(V, Context) of
         {ok, Snapshot} ->
@@ -51,7 +51,6 @@ checkout({head, #'Head'{}} = V, Repository, Context) ->
         {error, version_not_found} ->
             {error, version_not_found}
     end;
-
 checkout({version, Version} = V, Repository, Context) ->
     case dmt_api_cache:get(Version) of
         {ok, Snapshot} ->
@@ -67,7 +66,6 @@ checkout({version, Version} = V, Repository, Context) ->
 
 -spec checkout_object(ref(), object_ref(), repository(), context()) ->
     {ok, dmsl_domain_config_thrift:'VersionedObject'()} | {error, version_not_found | object_not_found}.
-
 checkout_object(Reference, ObjectReference, Repository, Context) ->
     case checkout(Reference, Repository, Context) of
         {ok, Snapshot} ->
@@ -76,16 +74,13 @@ checkout_object(Reference, ObjectReference, Repository, Context) ->
             Error
     end.
 
--spec pull(version(), limit(), repository(), context()) ->
-    {ok, history()} | {error, version_not_found}.
-
+-spec pull(version(), limit(), repository(), context()) -> {ok, history()} | {error, version_not_found}.
 pull(Version, Limit, Repository, Context) ->
     Repository:pull(Version, Limit, Context).
 
 -spec commit(version(), commit(), repository(), context()) ->
-    {ok, version()} |
-    {error, version_not_found | head_mismatch | migration_in_progress | {operation_error, operation_error()}}.
-
+    {ok, version()}
+    | {error, version_not_found | head_mismatch | migration_in_progress | {operation_error, operation_error()}}.
 commit(Version, Commit, Repository, Context) ->
     case Repository:commit(Version, Commit, Context) of
         {ok, Snapshot} ->
@@ -99,7 +94,6 @@ commit(Version, Commit, Repository, Context) ->
 
 -spec try_get_object(object_ref(), snapshot()) ->
     {ok, dmsl_domain_config_thrift:'VersionedObject'()} | {error, object_not_found}.
-
 try_get_object(ObjectReference, #'Snapshot'{version = Version, domain = Domain}) ->
     case dmt_domain:get_object(ObjectReference, Domain) of
         {ok, Object} ->

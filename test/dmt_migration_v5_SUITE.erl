@@ -22,13 +22,13 @@
 -export([p2p_provider_add_test/1]).
 -export([cash_reg_provider_add_test/1]).
 
-
 %% tests descriptions
 
 -type config() :: [{atom(), term()}].
 
 -define(config(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
--define(DEFAULT_LIMIT, 9001).  % to emulate unlimited polling
+% to emulate unlimited polling
+-define(DEFAULT_LIMIT, 9001).
 
 -type test_case_name() :: atom().
 -type group_name() :: atom().
@@ -55,16 +55,16 @@ groups() ->
 
 -spec init_per_suite(config()) -> config().
 init_per_suite(C) ->
-    Apps = genlib_app:start_application_with(scoper, [
-        {storage, scoper_storage_logger}
-    ]) ++ genlib_app:start_application_with(woody, []),
+    Apps =
+        genlib_app:start_application_with(scoper, [
+            {storage, scoper_storage_logger}
+        ]) ++ genlib_app:start_application_with(woody, []),
     [{suite_apps, Apps} | C].
 
 -spec end_per_suite(config()) -> term().
 end_per_suite(C) ->
     ok = clean_config(),
     genlib_app:stop_unload_applications(?config(suite_apps, C)).
-
 
 -spec init_per_testcase(test_case_name(), config()) -> config().
 init_per_testcase(_, C) ->
@@ -87,19 +87,21 @@ provider_terms_rewriting_test(_C) ->
         proxy = prepare_proxy(),
         payment_terms = #domain_PaymentsProvisionTerms{},
         recurrent_paytool_terms = #domain_RecurrentPaytoolsProvisionTerms{
-            cash_value = {value, #domain_Cash{
-                amount = 100,
-                currency = prepare_currency()
-            }},
+            cash_value =
+                {value, #domain_Cash{
+                    amount = 100,
+                    currency = prepare_currency()
+                }},
             categories = {value, []},
             payment_methods = {value, []}
         }
     },
     Object0 = {provider, #domain_ProviderObject{ref = Ref, data = Data0}},
-    Object1 = {provider, #domain_ProviderObject{
-        ref = Ref,
-        data = Data0#domain_Provider{name = <<"Drovider">>}
-    }},
+    Object1 =
+        {provider, #domain_ProviderObject{
+            ref = Ref,
+            data = Data0#domain_Provider{name = <<"Drovider">>}
+        }},
     Version0 = insert(Object0),
     Version1 = update(Object0, Object1),
     Version2 = remove(Object1),
@@ -132,10 +134,11 @@ terminal_terms_rewriting_test(_C) ->
         terms_legacy = #domain_PaymentsProvisionTerms{}
     },
     Object0 = {terminal, #domain_TerminalObject{ref = Ref, data = Data0}},
-    Object1 = {terminal, #domain_TerminalObject{
-        ref = Ref,
-        data = Data0#domain_Terminal{name = <<"Drominal">>}
-    }},
+    Object1 =
+        {terminal, #domain_TerminalObject{
+            ref = Ref,
+            data = Data0#domain_Terminal{name = <<"Drominal">>}
+        }},
     Version0 = insert(Object0),
     Version1 = update(Object0, Object1),
     Version2 = remove(Object1),
@@ -168,18 +171,20 @@ institution_provider_rewriting_test(_C) ->
         inspector = {value, prepare_inspector()},
         realm = test,
         residences = [],
-        withdrawal_providers_legacy = {decisions, [
-            #domain_WithdrawalProviderDecision{
-                if_ = {constant, true},
-                then_ = {value, [prepare_withdrawal_provider(1)]}
-            }
-        ]},
-        p2p_providers_legacy = {decisions, [
-            #domain_P2PProviderDecision{
-                if_ = {constant, true},
-                then_ = {value, [prepare_p2p_provider(1)]}
-            }
-        ]}
+        withdrawal_providers_legacy =
+            {decisions, [
+                #domain_WithdrawalProviderDecision{
+                    if_ = {constant, true},
+                    then_ = {value, [prepare_withdrawal_provider(1)]}
+                }
+            ]},
+        p2p_providers_legacy =
+            {decisions, [
+                #domain_P2PProviderDecision{
+                    if_ = {constant, true},
+                    then_ = {value, [prepare_p2p_provider(1)]}
+                }
+            ]}
     },
     Object0 = {payment_institution, #domain_PaymentInstitutionObject{ref = Ref, data = Data0}},
     Version0 = insert(Object0),
@@ -187,18 +192,20 @@ institution_provider_rewriting_test(_C) ->
     Expected = #domain_PaymentInstitutionObject{
         ref = Ref,
         data = Data0#domain_PaymentInstitution{
-            withdrawal_providers = {decisions, [
-                #domain_ProviderDecision{
-                    if_ = {constant, true},
-                    then_ = {value, [#domain_ProviderRef{id = 301}]}
-                }
-            ]},
-            p2p_providers = {decisions, [
-                #domain_ProviderDecision{
-                    if_ = {constant, true},
-                    then_ = {value, [#domain_ProviderRef{id = 401}]}
-                }
-            ]}
+            withdrawal_providers =
+                {decisions, [
+                    #domain_ProviderDecision{
+                        if_ = {constant, true},
+                        then_ = {value, [#domain_ProviderRef{id = 301}]}
+                    }
+                ]},
+            p2p_providers =
+                {decisions, [
+                    #domain_ProviderDecision{
+                        if_ = {constant, true},
+                        then_ = {value, [#domain_ProviderRef{id = 401}]}
+                    }
+                ]}
         }
     },
     ?assertEqual(Expected, checkout({payment_institution, Ref}, Version0)),
@@ -369,29 +376,31 @@ cash_reg_provider_add_test(_C) ->
 prepare_currency() ->
     ID = genlib:unique(),
     Ref = #domain_CurrencyRef{symbolic_code = ID},
-    Object = {currency, #domain_CurrencyObject{
-        ref = Ref,
-        data = #domain_Currency{
-            name = <<>>,
-            symbolic_code = ID,
-            numeric_code = 0,
-            exponent = 1
-        }
-    }},
+    Object =
+        {currency, #domain_CurrencyObject{
+            ref = Ref,
+            data = #domain_Currency{
+                name = <<>>,
+                symbolic_code = ID,
+                numeric_code = 0,
+                exponent = 1
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
 prepare_proxy() ->
     Ref = #domain_ProxyRef{id = next_id()},
-    Object = {proxy, #domain_ProxyObject{
-        ref = Ref,
-        data = #domain_ProxyDefinition{
-            name = <<>>,
-            description = <<>>,
-            url = <<>>,
-            options = #{}
-        }
-    }},
+    Object =
+        {proxy, #domain_ProxyObject{
+            ref = Ref,
+            data = #domain_ProxyDefinition{
+                name = <<>>,
+                description = <<>>,
+                url = <<>>,
+                options = #{}
+            }
+        }},
     _Version = insert(Object),
     #domain_Proxy{
         ref = Ref,
@@ -400,73 +409,79 @@ prepare_proxy() ->
 
 prepare_inspector() ->
     Ref = #domain_InspectorRef{id = next_id()},
-    Object = {inspector, #domain_InspectorObject{
-        ref = Ref,
-        data = #domain_Inspector{
-            name = <<"Gadget">>,
-            description = <<"Yet another inspector">>,
-            proxy = prepare_proxy()
-        }
-    }},
+    Object =
+        {inspector, #domain_InspectorObject{
+            ref = Ref,
+            data = #domain_Inspector{
+                name = <<"Gadget">>,
+                description = <<"Yet another inspector">>,
+                proxy = prepare_proxy()
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
 prepare_system_account_set() ->
     Ref = #domain_SystemAccountSetRef{id = next_id()},
-    Object = {system_account_set, #domain_SystemAccountSetObject{
-        ref = Ref,
-        data = #domain_SystemAccountSet{
-            name = <<"Super set">>,
-            description = <<"">>,
-            accounts = #{}
-        }
-    }},
+    Object =
+        {system_account_set, #domain_SystemAccountSetObject{
+            ref = Ref,
+            data = #domain_SystemAccountSet{
+                name = <<"Super set">>,
+                description = <<"">>,
+                accounts = #{}
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
 prepare_contract_template() ->
     Ref = #domain_ContractTemplateRef{id = next_id()},
-    Object = {contract_template, #domain_ContractTemplateObject{
-        ref = Ref,
-        data = #domain_ContractTemplate{
-            terms = prepare_term_set_hierarchy()
-        }
-    }},
+    Object =
+        {contract_template, #domain_ContractTemplateObject{
+            ref = Ref,
+            data = #domain_ContractTemplate{
+                terms = prepare_term_set_hierarchy()
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
 prepare_term_set_hierarchy() ->
     Ref = #domain_TermSetHierarchyRef{id = next_id()},
-    Object = {term_set_hierarchy, #domain_TermSetHierarchyObject{
-        ref = Ref,
-        data = #domain_TermSetHierarchy{
-            term_sets = []
-        }
-    }},
+    Object =
+        {term_set_hierarchy, #domain_TermSetHierarchyObject{
+            ref = Ref,
+            data = #domain_TermSetHierarchy{
+                term_sets = []
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
 prepare_withdrawal_provider(ID) ->
     Ref = #domain_WithdrawalProviderRef{id = ID},
-    Object = {withdrawal_provider, #domain_WithdrawalProviderObject{
-        ref = Ref,
-        data = #domain_WithdrawalProvider{
-            name = <<"">>,
-            proxy = prepare_proxy()
-        }
-    }},
+    Object =
+        {withdrawal_provider, #domain_WithdrawalProviderObject{
+            ref = Ref,
+            data = #domain_WithdrawalProvider{
+                name = <<"">>,
+                proxy = prepare_proxy()
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
 prepare_p2p_provider(ID) ->
     Ref = #domain_P2PProviderRef{id = ID},
-    Object = {p2p_provider, #domain_P2PProviderObject{
-        ref = Ref,
-        data = #domain_P2PProvider{
-            name = <<"">>,
-            proxy = prepare_proxy()
-        }
-    }},
+    Object =
+        {p2p_provider, #domain_P2PProviderObject{
+            ref = Ref,
+            data = #domain_P2PProvider{
+                name = <<"">>,
+                proxy = prepare_proxy()
+            }
+        }},
     _Version = insert(Object),
     Ref.
 
@@ -479,9 +494,11 @@ insert(Object) ->
 
 update(Object0, Object1) ->
     {ok, Version} = dmt_client_cache:update(),
-    dmt_client:commit(Version, #'Commit'{ops = [
-        {update, #'UpdateOp'{old_object = Object0, new_object = Object1}}
-    ]}).
+    dmt_client:commit(Version, #'Commit'{
+        ops = [
+            {update, #'UpdateOp'{old_object = Object0, new_object = Object1}}
+        ]
+    }).
 
 remove(Object) ->
     {ok, Version} = dmt_client_cache:update(),
@@ -503,21 +520,24 @@ start_with_repository(Repository) ->
         {repository, Repository},
         {services, #{
             automaton => #{
-                url =>"http://machinegun:8022/v1/automaton"
+                url => "http://machinegun:8022/v1/automaton"
             }
         }},
         {migration, #{
             timeout => 360,
-            limit   => 20
+            limit => 20
         }},
-        {max_cache_size, 52428800}  % 50Mb
+        % 50Mb
+        {max_cache_size, 52428800}
     ]),
     ClientApps = genlib_app:start_application_with(dmt_client, [
-        {cache_update_interval, 5000},  % milliseconds
+        % milliseconds
+        {cache_update_interval, 5000},
         {cache_update_pull_limit, ?DEFAULT_LIMIT},
         {max_cache_size, #{
             elements => 20,
-            memory => 52428800  % 50Mb
+            % 50Mb
+            memory => 52428800
         }},
         {service_urls, #{
             'Repository' => <<"http://dominant:8022/v1/domain/repository">>,
@@ -538,13 +558,14 @@ migrate(Version0, Apps0) ->
     {Version1, start_with_repository(dmt_api_repository_migration)}.
 
 wait_for_migration(V, TriesLeft, SleepInterval) when TriesLeft > 0 ->
-    Object = {category, #domain_CategoryObject{
-        ref = #domain_CategoryRef{id = next_id()},
-        data = #domain_Category{
-            name = <<"MigrationCommitFixture">>,
-            description = <<"MigrationCommitFixture">>
-        }
-    }},
+    Object =
+        {category, #domain_CategoryObject{
+            ref = #domain_CategoryRef{id = next_id()},
+            data = #domain_Category{
+                name = <<"MigrationCommitFixture">>,
+                description = <<"MigrationCommitFixture">>
+            }
+        }},
     Commit = #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]},
     try
         dmt_client:commit(V, Commit)
@@ -564,7 +585,7 @@ clean_config() ->
 
 delete_machine(NS, ID) ->
     Opts = #{
-        url =>"http://machinegun:8022/v1/automaton",
+        url => "http://machinegun:8022/v1/automaton",
         event_handler => {scoper_woody_event_handler, #{}}
     },
     Request = {{mg_proto_state_processing_thrift, 'Automaton'}, 'Remove', {NS, ID}},
