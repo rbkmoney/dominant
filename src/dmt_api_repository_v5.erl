@@ -1,13 +1,13 @@
 -module(dmt_api_repository_v5).
+
 -behaviour(dmt_api_repository).
 
 -include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
 -include_lib("mg_proto/include/mg_proto_state_processing_thrift.hrl").
 
--define(NS  , <<"domain-config">>).
--define(ID  , <<"primary/v5">>).
+-define(NS, <<"domain-config">>).
+-define(ID, <<"primary/v5">>).
 -define(BASE, 10).
-
 
 %% API
 
@@ -29,20 +29,19 @@
     history = #{} :: dmt_api_repository:history()
 }).
 
--type st()              :: #st{}.
--type context()         :: woody_context:ctx().
--type history_range()   :: mg_proto_state_processing_thrift:'HistoryRange'().
--type machine()         :: mg_proto_state_processing_thrift:'Machine'().
--type history()         :: mg_proto_state_processing_thrift:'History'().
+-type st() :: #st{}.
+-type context() :: woody_context:ctx().
+-type history_range() :: mg_proto_state_processing_thrift:'HistoryRange'().
+-type machine() :: mg_proto_state_processing_thrift:'Machine'().
+-type history() :: mg_proto_state_processing_thrift:'History'().
 
--type ref()             :: dmsl_domain_config_thrift:'Reference'().
--type snapshot()        :: dmt_api_repository:snapshot().
--type commit()          :: dmt_api_repository:commit().
+-type ref() :: dmsl_domain_config_thrift:'Reference'().
+-type snapshot() :: dmt_api_repository:snapshot().
+-type commit() :: dmt_api_repository:commit().
 
 -spec checkout(ref(), context()) ->
-    {ok, snapshot()} |
-    {error, version_not_found}.
-
+    {ok, snapshot()}
+    | {error, version_not_found}.
 checkout({head, #'Head'{}}, Context) ->
     HistoryRange = #mg_stateproc_HistoryRange{
         'after' = undefined,
@@ -75,16 +74,14 @@ checkout({version, V}, Context) ->
     end.
 
 -spec pull(dmt_api_repository:version(), context()) ->
-    {ok, dmt_api_repository:history()} |
-    {error, version_not_found}.
-
+    {ok, dmt_api_repository:history()}
+    | {error, version_not_found}.
 pull(Version, Context) ->
     pull(Version, undefined, Context).
 
 -spec pull(dmt_api_repository:version(), dmt_api_repository:limit(), context()) ->
-    {ok, dmt_api_repository:history()} |
-    {error, version_not_found}.
-
+    {ok, dmt_api_repository:history()}
+    | {error, version_not_found}.
 pull(Version, Limit, Context) ->
     After = get_event_id(Version),
     case get_history_by_range(#mg_stateproc_HistoryRange{'after' = After, 'limit' = Limit}, Context) of
@@ -95,26 +92,25 @@ pull(Version, Limit, Context) ->
     end.
 
 -spec commit(dmt_api_repository:version(), commit(), context()) ->
-    {ok, snapshot()} |
-    {error, version_not_found | {operation_error, dmt_domain:operation_error()}}.
-
+    {ok, snapshot()}
+    | {error, version_not_found | {operation_error, dmt_domain:operation_error()}}.
 commit(Version, Commit, Context) ->
     BaseID = get_event_id(get_base_version(Version)),
-    decode_call_result(dmt_api_automaton_client:call(
-        ?NS,
-        ?ID,
-        %% TODO in theory, it's enought ?BASE + 1 events here,
-        %% but it's complicated and needs to be covered by tests
-        #mg_stateproc_HistoryRange{'after' = BaseID},
-        encode_call({commit, Version, Commit}),
-        Context
-    )).
+    decode_call_result(
+        dmt_api_automaton_client:call(
+            ?NS,
+            ?ID,
+            %% TODO in theory, it's enought ?BASE + 1 events here,
+            %% but it's complicated and needs to be covered by tests
+            #mg_stateproc_HistoryRange{'after' = BaseID},
+            encode_call({commit, Version, Commit}),
+            Context
+        )
+    ).
 
 %%
 
--spec get_history_by_range(history_range(), context()) ->
-    st() | {error, version_not_found}.
-
+-spec get_history_by_range(history_range(), context()) -> st() | {error, version_not_found}.
 get_history_by_range(HistoryRange, Context) ->
     case dmt_api_automaton_client:get_history(?NS, ?ID, HistoryRange, Context) of
         {ok, History} ->
@@ -130,7 +126,6 @@ get_history_by_range(HistoryRange, Context) ->
 
 -spec process_call(dmt_api_automaton_handler:call(), machine(), context()) ->
     {dmt_api_automaton_handler:response(), dmt_api_automaton_handler:events()} | no_return().
-
 process_call(Call, #mg_stateproc_Machine{ns = ?NS, id = ?ID} = Machine, Context) ->
     Args = decode_call(Call),
     {Result, Events} = handle_call(Args, read_history(Machine), Context),
@@ -141,7 +136,6 @@ process_call(_Call, #mg_stateproc_Machine{ns = NS, id = ID}, _Context) ->
 
 -spec process_signal(dmt_api_automaton_handler:signal(), machine(), context()) ->
     {dmt_api_automaton_handler:action(), dmt_api_automaton_handler:events()} | no_return().
-
 process_signal({init, #mg_stateproc_InitSignal{}}, #mg_stateproc_Machine{ns = ?NS, id = ?ID}, _Context) ->
     {#mg_stateproc_ComplexAction{}, []};
 process_signal({timeout, #mg_stateproc_TimeoutSignal{}}, #mg_stateproc_Machine{ns = ?NS, id = ?ID}, _Context) ->
@@ -181,17 +175,13 @@ check_commit(Version, Commit, #st{snapshot = BaseSnapshot, history = History}) -
             {{error, head_mismatch}, []}
     end.
 
--spec read_history(machine() | history()) ->
-    st().
-
+-spec read_history(machine() | history()) -> st().
 read_history(#mg_stateproc_Machine{history = Events}) ->
     read_history(Events);
 read_history(Events) ->
     read_history(Events, #st{}).
 
--spec read_history([mg_proto_state_processing_thrift:'Event'()],  st()) ->
-    st().
-
+-spec read_history([mg_proto_state_processing_thrift:'Event'()], st()) -> st().
 read_history([], St) ->
     St;
 read_history(
@@ -223,12 +213,13 @@ squash_state(#st{snapshot = BaseSnapshot, history = History}) ->
 %%
 
 make_event(Snapshot, Commit) ->
-    Meta = case (Snapshot#'Snapshot'.version) rem ?BASE of
-        0 ->
-            #{snapshot => Snapshot};
-        _ ->
-            #{}
-    end,
+    Meta =
+        case (Snapshot#'Snapshot'.version) rem ?BASE of
+            0 ->
+                #{snapshot => Snapshot};
+            _ ->
+                #{}
+        end,
     {commit, Commit, Meta}.
 
 encode_events(Events) ->
@@ -266,11 +257,11 @@ decode_call({arr, [{str, <<"commit">>}, {i, Version}, Commit]}) ->
     {commit, Version, decode(commit, Commit)}.
 
 encode_call_result({ok, Snapshot}) ->
-    {arr, [{str, <<"ok">> }, encode(snapshot, Snapshot)]};
+    {arr, [{str, <<"ok">>}, encode(snapshot, Snapshot)]};
 encode_call_result({error, Reason}) ->
     {arr, [{str, <<"err">>}, {bin, term_to_binary(Reason)}]}.
 
-decode_call_result({arr, [{str, <<"ok">> }, Snapshot]}) ->
+decode_call_result({arr, [{str, <<"ok">>}, Snapshot]}) ->
     {ok, decode(snapshot, Snapshot)};
 decode_call_result({arr, [{str, <<"err">>}, {bin, Reason}]}) ->
     {error, binary_to_term(Reason)}.

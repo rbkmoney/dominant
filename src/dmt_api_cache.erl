@@ -1,4 +1,5 @@
 -module(dmt_api_cache).
+
 -behaviour(gen_server).
 
 %%
@@ -27,34 +28,29 @@
 
 %%
 
--spec start_link() -> {ok, pid()} | {error, term()}. % FIXME
-
+% FIXME
+-spec start_link() -> {ok, pid()} | {error, term()}.
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 -spec child_spec() -> supervisor:child_spec().
-
 child_spec() ->
     #{id => ?MODULE, start => {?MODULE, start_link, []}, restart => permanent}.
 
 -spec put(dmt_api_repository:snapshot()) -> dmt_api_repository:snapshot().
-
 put(Snapshot) ->
     ok = gen_server:cast(?SERVER, {put, Snapshot}),
     Snapshot.
 
 -spec get(dmt_api_repository:version()) -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
-
 get(Version) ->
     get_snapshot(Version).
 
 -spec get_latest() -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
-
 get_latest() ->
     exec_with_synchronous_retry(fun() -> get_latest_snapshot() end).
 
 -spec get_closest(dmt_api_repository:version()) -> {ok, dmt_api_repository:snapshot()} | {error, version_not_found}.
-
 get_closest(Version) ->
     exec_with_synchronous_retry(fun() -> get_closest_snapshot(Version) end).
 
@@ -65,7 +61,6 @@ get_closest(Version) ->
 -type state() :: #state{}.
 
 -spec init(_) -> {ok, state()}.
-
 init(_) ->
     EtsOpts = [
         named_table,
@@ -78,25 +73,20 @@ init(_) ->
     {ok, #state{}}.
 
 -spec handle_call(term(), {pid(), term()}, state()) -> {reply, term(), state()}.
-
 handle_call({exec, F}, _From, State) ->
     {reply, F(), State};
-
 handle_call(_Msg, _From, State) ->
     {noreply, State}.
 
 -spec handle_cast(term(), state()) -> {noreply, state()}.
-
 handle_cast({put, Snapshot}, State) ->
     true = ets:insert(?TABLE, Snapshot),
     ok = cleanup(),
     {noreply, State};
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 -spec handle_info(term(), state()) -> {noreply, state()}.
-
 handle_info(_Msg, State) ->
     {noreply, State}.
 
@@ -141,13 +131,10 @@ get_closest_snapshot(Version) ->
 
 get_closest_snapshot('$end_of_table', '$end_of_table', _Version) ->
     {error, version_not_found};
-
 get_closest_snapshot('$end_of_table', Next, _Version) ->
     get_snapshot(Next);
-
 get_closest_snapshot(Prev, '$end_of_table', _Version) ->
     get_snapshot(Prev);
-
 get_closest_snapshot(Prev, Next, Version) ->
     case Next - Version < Version - Prev of
         true ->
@@ -158,7 +145,8 @@ get_closest_snapshot(Prev, Next, Version) ->
 
 cleanup() ->
     CacheSize = get_cache_size(),
-    CacheLimit = genlib_app:env(dmt_api, max_cache_size, 52428800), % 50Mb by default
+    % 50Mb by default
+    CacheLimit = genlib_app:env(dmt_api, max_cache_size, 52428800),
     case CacheSize > CacheLimit of
         true ->
             ok = remove_earliest(),

@@ -1,4 +1,5 @@
 -module(dmt_api_repository_handler).
+
 -behaviour(woody_server_thrift_handler).
 
 -include_lib("damsel/include/dmsl_domain_config_thrift.hrl").
@@ -16,11 +17,9 @@
 
 -type context() :: woody_context:ctx().
 
-
 %% API
 
--spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) ->
-    {ok, term()} | no_return().
+-spec handle_function(woody:func(), woody:args(), woody_context:ctx(), options()) -> {ok, term()} | no_return().
 handle_function(Function, Args, WoodyContext0, Options) ->
     DefaultDeadline = woody_deadline:from_timeout(default_handling_timeout(Options)),
     WoodyContext = dmt_api_woody_utils:ensure_woody_deadline_set(WoodyContext0, DefaultDeadline),
@@ -29,14 +28,10 @@ handle_function(Function, Args, WoodyContext0, Options) ->
 %% Internals
 
 -spec do_handle_function
-    ('Commit', woody:args(), context(), woody:options()) ->
-        {ok, dmt_api_repository:version()} | no_return();
-    ('Checkout', woody:args(), context(), woody:options()) ->
-        {ok, dmt_api_repository:snapshot()} | no_return();
-    ('PullRange', woody:args(), context(), woody:options()) ->
-        {ok, dmt_api_repository:history()} | no_return();
-    ('Pull', woody:args(), context(), woody:options()) ->
-        {ok, dmt_api_repository:history()} | no_return().
+    ('Commit', woody:args(), context(), woody:options()) -> {ok, dmt_api_repository:version()} | no_return();
+    ('Checkout', woody:args(), context(), woody:options()) -> {ok, dmt_api_repository:snapshot()} | no_return();
+    ('PullRange', woody:args(), context(), woody:options()) -> {ok, dmt_api_repository:history()} | no_return();
+    ('Pull', woody:args(), context(), woody:options()) -> {ok, dmt_api_repository:history()} | no_return().
 do_handle_function('Commit', {Version, Commit}, Context, Options) ->
     case dmt_api_repository:commit(Version, Commit, repository(Options), Context) of
         {ok, VersionNext} ->
@@ -100,22 +95,20 @@ handle_operation_invalid(Invalid) ->
                 {object_not_exists, #'NonexistantObject'{
                     object_ref = Ref,
                     referenced_by = ReferencedBy
-                }} ||
-                    {Ref, ReferencedBy} <- Refs
+                }}
+                || {Ref, ReferencedBy} <- Refs
             ];
         {object_reference_cycles, Cycles} ->
             [
-                {object_reference_cycle, #'ObjectReferenceCycle'{cycle = Cycle}} ||
-                    Cycle <- Cycles
+                {object_reference_cycle, #'ObjectReferenceCycle'{cycle = Cycle}}
+                || Cycle <- Cycles
             ]
     end.
 
--spec repository(options()) ->
-    module().
+-spec repository(options()) -> module().
 repository(#{repository := Repository}) ->
     Repository.
 
--spec default_handling_timeout(options()) ->
-    timeout().
+-spec default_handling_timeout(options()) -> timeout().
 default_handling_timeout(#{default_handling_timeout := Timeout}) ->
     Timeout.
