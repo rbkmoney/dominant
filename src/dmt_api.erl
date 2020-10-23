@@ -34,6 +34,7 @@ init(_) ->
             event_handler => EventHandlers,
             handlers => get_repository_handlers(),
             additional_routes => [
+                get_prometheus_route(),
                 erl_health_handle:get_route(HealthCheck)
             ]
         }
@@ -79,3 +80,7 @@ get_handler_spec(state_processor, Options) ->
 enable_health_logging(Check) ->
     EvHandler = {erl_health_event_handler, []},
     maps:map(fun(_, V = {_, _, _}) -> #{runner => V, event_handler => EvHandler} end, Check).
+
+-spec get_prometheus_route() -> {iodata(), module(), _Opts :: any()}.
+get_prometheus_route() ->
+    {"/metrics/[:registry]", prometheus_cowboy2_handler, []}.
