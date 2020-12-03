@@ -19,7 +19,7 @@
   0},
  {<<"dmt_core">>,
   {git,"git@github.com:rbkmoney/dmt_core.git",
-       {ref,"a04615cb2fe707ac4dba96314c54d096858bb948"}},
+       {ref,"888b15011f4a94763575af8cc187d2e2f4efc293"}},
   0},
  {<<"erl_health">>,
   {git,"https://github.com/rbkmoney/erlang-health.git",
