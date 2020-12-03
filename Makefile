@@ -20,7 +20,7 @@ BASE_IMAGE_TAG := b7873e38b777322bbb1ce5d73507c26e6280c144
 BUILD_IMAGE_NAME := build-erlang
 BUILD_IMAGE_TAG := 491bc06c745a07c6fe9e8b5dbbe958e8e0b82c4c
 
-CALL_ANYWHERE := all submodules compile xref lint dialyze start devrel release clean distclean check_format format
+CALL_ANYWHERE := all submodules compile xref lint dialyze release clean distclean check_format format
 
 CALL_W_CONTAINER := $(CALL_ANYWHERE) test
 
