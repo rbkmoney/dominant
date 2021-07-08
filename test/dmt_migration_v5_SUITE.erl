@@ -505,8 +505,8 @@ remove(Object) ->
     dmt_client:commit(Version, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}).
 
 checkout(Ref, Version) ->
-    try dmt_client:checkout_object({version, Version}, Ref) of
-        #'VersionedObject'{object = {_Tag, Object}} ->
+    try dmt_client:checkout_object(Version, Ref) of
+        {_Tag, Object} ->
             Object
     catch
         throw:#'ObjectNotFound'{} ->
