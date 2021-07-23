@@ -489,20 +489,17 @@ next_id() ->
     erlang:system_time(micro_seconds) band 16#7FFFFFFF.
 
 insert(Object) ->
-    {ok, Version} = dmt_client_cache:update(),
-    dmt_client:commit(Version, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}).
+    dmt_client:commit(#'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}).
 
 update(Object0, Object1) ->
-    {ok, Version} = dmt_client_cache:update(),
-    dmt_client:commit(Version, #'Commit'{
+    dmt_client:commit(#'Commit'{
         ops = [
             {update, #'UpdateOp'{old_object = Object0, new_object = Object1}}
         ]
     }).
 
 remove(Object) ->
-    {ok, Version} = dmt_client_cache:update(),
-    dmt_client:commit(Version, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}).
+    dmt_client:commit(#'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}).
 
 checkout(Ref, Version) ->
     try dmt_client:checkout_object(Version, Ref) of

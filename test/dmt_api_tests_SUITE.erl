@@ -199,7 +199,6 @@ delete(_C) ->
     #'Snapshot'{version = Version0} = dmt_client:checkout(latest),
     Version1 = dmt_client:commit(Version0, #'Commit'{ops = [{insert, #'InsertOp'{object = Object}}]}),
     Version2 = dmt_client:commit(Version1, #'Commit'{ops = [{remove, #'RemoveOp'{object = Object}}]}),
-    _ = dmt_client_cache:update(),
     Object = dmt_client:checkout_object(Version1, Ref),
     #'ObjectNotFound'{} = (catch dmt_client:checkout_object(Version2, Ref)).
 
@@ -226,7 +225,6 @@ retry_commit(_C) ->
     Version2 = dmt_client:commit(Version1, Commit1),
     Version2 = Version1 + 1,
     Version2 = dmt_client:commit(Version1, Commit1),
-    _ = dmt_client_cache:update(),
     #'Snapshot'{version = Version2} = dmt_client:checkout(latest),
     Commit2 = #'Commit'{
         ops = [
@@ -238,7 +236,6 @@ retry_commit(_C) ->
     Version3 = dmt_client:commit(Version2, Commit2),
     Version3 = Version2 + 1,
     Version2 = dmt_client:commit(Version1, Commit1),
-    _ = dmt_client_cache:update(),
     #'Snapshot'{version = Version3} = dmt_client:checkout(latest).
 
 -spec migration_success(term()) -> term().
@@ -295,11 +292,7 @@ nonexistent(_C) ->
                 | _
             ]
         },
-        dmt_client:commit(Version1, #'Commit'{
-            ops = [
-                {insert, #'InsertOp'{object = criterion_w_refs(42, [43, 44, 45])}}
-            ]
-        })
+        dmt_client:insert(Version1, criterion_w_refs(42, [43, 44, 45]))
     ).
 
 -spec reference_cycles(term()) -> term().
@@ -320,14 +313,15 @@ reference_cycles(_C) ->
                 }}
             ]
         },
-        dmt_client:commit(Version1, #'Commit'{
-            ops = [
-                {insert, #'InsertOp'{object = criterion_w_refs(1, [2])}},
-                {insert, #'InsertOp'{object = criterion_w_refs(2, [3])}},
-                {insert, #'InsertOp'{object = criterion_w_refs(3, [4, 1])}},
-                {insert, #'InsertOp'{object = criterion_w_refs(4, [1, 2])}}
+        dmt_client:insert(
+            Version1,
+            [
+                criterion_w_refs(1, [2]),
+                criterion_w_refs(2, [3]),
+                criterion_w_refs(3, [4, 1]),
+                criterion_w_refs(4, [1, 2])
             ]
-        })
+        )
     ).
 
 next_id() ->

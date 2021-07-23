@@ -96,12 +96,12 @@ handle_operation_invalid(Invalid) ->
                     object_ref = Ref,
                     referenced_by = ReferencedBy
                 }}
-             || {Ref, ReferencedBy} <- Refs
+                || {Ref, ReferencedBy} <- Refs
             ];
         {object_reference_cycles, Cycles} ->
             [
                 {object_reference_cycle, #'ObjectReferenceCycle'{cycle = Cycle}}
-             || Cycle <- Cycles
+                || Cycle <- Cycles
             ]
     end.
 
