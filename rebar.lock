@@ -15,7 +15,7 @@
   0},
  {<<"dmt_client">>,
   {git,"git@github.com:rbkmoney/dmt_client.git",
-       {ref,"37f376e239a2182cbb2a7a052797e99955edbaad"}},
+       {ref,"3f66402843ffeb488010f707a193858cb09325e0"}},
   0},
  {<<"dmt_core">>,
   {git,"git@github.com:rbkmoney/dmt_core.git",
