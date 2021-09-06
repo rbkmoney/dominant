@@ -12,8 +12,7 @@
         mg_proto,
         erl_health,
         prometheus,
-        prometheus_cowboy,
-        how_are_you
+        prometheus_cowboy
     ]},
     {mod, {dmt_api, []}},
     {env, []}
