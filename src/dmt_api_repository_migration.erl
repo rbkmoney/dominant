@@ -228,20 +228,10 @@ rewrite_object({provider, #domain_ProviderObject{data = Data} = Object}) ->
         }
     },
     {provider, Object#domain_ProviderObject{data = NewData}};
-rewrite_object({terminal, #domain_TerminalObject{data = Data} = Object}) ->
-    NewData = Data#domain_Terminal{
-        terms = #domain_ProvisionTermSet{
-            payments = Data#domain_Terminal.terms_legacy
-        }
-    },
-    {terminal, Object#domain_TerminalObject{data = NewData}};
 rewrite_object({payment_institution, #domain_PaymentInstitutionObject{data = Data} = Object}) ->
     NewData = Data#domain_PaymentInstitution{
         withdrawal_providers = rewrite_provider_selector(
             Data#domain_PaymentInstitution.withdrawal_providers_legacy
-        ),
-        p2p_providers = rewrite_provider_selector(
-            Data#domain_PaymentInstitution.p2p_providers_legacy
         )
     },
     {payment_institution, Object#domain_PaymentInstitutionObject{data = NewData}};
@@ -304,22 +294,6 @@ maybe_clone_object({withdrawal_provider, Object}) ->
     },
     NewRef = rewrite_ref(Ref),
     {add, {provider, #domain_ProviderObject{data = NewData, ref = NewRef}}};
-maybe_clone_object({p2p_provider, Object}) ->
-    #domain_P2PProviderObject{data = Data, ref = Ref} = Object,
-    NewData = #domain_Provider{
-        name = Data#domain_P2PProvider.name,
-        description = default(Data#domain_P2PProvider.description, <<"">>),
-        proxy = Data#domain_P2PProvider.proxy,
-        identity = Data#domain_P2PProvider.identity,
-        accounts = Data#domain_P2PProvider.accounts,
-        terms = #domain_ProvisionTermSet{
-            wallet = #domain_WalletProvisionTerms{
-                p2p = Data#domain_P2PProvider.p2p_terms
-            }
-        }
-    },
-    NewRef = rewrite_ref(Ref),
-    {add, {provider, #domain_ProviderObject{data = NewData, ref = NewRef}}};
 maybe_clone_object({cash_register_provider, Object}) ->
     #domain_CashRegisterProviderObject{data = Data, ref = Ref} = Object,
     NewData = #domain_Provider{
@@ -335,8 +309,6 @@ maybe_clone_object(_Object) ->
 
 rewrite_ref(#domain_WithdrawalProviderRef{id = ID}) ->
     #domain_ProviderRef{id = ID + 300};
-rewrite_ref(#domain_P2PProviderRef{id = ID}) ->
-    #domain_ProviderRef{id = ID + 400};
 rewrite_ref(#domain_CashRegisterProviderRef{id = ID}) ->
     #domain_ProviderRef{id = ID + 450}.
 

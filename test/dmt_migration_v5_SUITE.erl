@@ -19,7 +19,6 @@
 -export([institution_provider_rewriting_test/1]).
 -export([institution_provider_undefined_rewriting_test/1]).
 -export([withdrawal_provider_add_test/1]).
--export([p2p_provider_add_test/1]).
 -export([cash_reg_provider_add_test/1]).
 
 %% tests descriptions
@@ -48,7 +47,6 @@ groups() ->
             institution_provider_rewriting_test,
             institution_provider_undefined_rewriting_test,
             withdrawal_provider_add_test,
-            p2p_provider_add_test,
             cash_reg_provider_add_test
         ]}
     ].
@@ -131,7 +129,9 @@ terminal_terms_rewriting_test(_C) ->
     Data0 = #domain_Terminal{
         name = <<"Brominal">>,
         description = <<"Brominal description">>,
-        terms_legacy = #domain_PaymentsProvisionTerms{}
+        terms = #domain_ProvisionTermSet{
+            payments = #domain_PaymentsProvisionTerms{}
+        }
     },
     Object0 = {terminal, #domain_TerminalObject{ref = Ref, data = Data0}},
     Object1 =
@@ -145,11 +145,7 @@ terminal_terms_rewriting_test(_C) ->
     {Version3, Apps1} = migrate(Version2, Apps0),
     Expected0 = #domain_TerminalObject{
         ref = Ref,
-        data = Data0#domain_Terminal{
-            terms = #domain_ProvisionTermSet{
-                payments = Data0#domain_Terminal.terms_legacy
-            }
-        }
+        data = Data0
     },
     Expected1 = Expected0#domain_TerminalObject{
         data = Expected0#domain_TerminalObject.data#domain_Terminal{name = <<"Drominal">>}
@@ -177,13 +173,6 @@ institution_provider_rewriting_test(_C) ->
                     if_ = {constant, true},
                     then_ = {value, [prepare_withdrawal_provider(1)]}
                 }
-            ]},
-        p2p_providers_legacy =
-            {decisions, [
-                #domain_P2PProviderDecision{
-                    if_ = {constant, true},
-                    then_ = {value, [prepare_p2p_provider(1)]}
-                }
             ]}
     },
     Object0 = {payment_institution, #domain_PaymentInstitutionObject{ref = Ref, data = Data0}},
@@ -197,13 +186,6 @@ institution_provider_rewriting_test(_C) ->
                     #domain_ProviderDecision{
                         if_ = {constant, true},
                         then_ = {value, [#domain_ProviderRef{id = 301}]}
-                    }
-                ]},
-            p2p_providers =
-                {decisions, [
-                    #domain_ProviderDecision{
-                        if_ = {constant, true},
-                        then_ = {value, [#domain_ProviderRef{id = 401}]}
                     }
                 ]}
         }
@@ -223,8 +205,7 @@ institution_provider_undefined_rewriting_test(_C) ->
         inspector = {value, prepare_inspector()},
         realm = test,
         residences = [],
-        withdrawal_providers_legacy = undefined,
-        p2p_providers_legacy = undefined
+        withdrawal_providers_legacy = undefined
     },
     Object0 = {payment_institution, #domain_PaymentInstitutionObject{ref = Ref, data = Data0}},
     Version0 = insert(Object0),
@@ -232,8 +213,7 @@ institution_provider_undefined_rewriting_test(_C) ->
     Expected = #domain_PaymentInstitutionObject{
         ref = Ref,
         data = Data0#domain_PaymentInstitution{
-            withdrawal_providers = undefined,
-            p2p_providers = undefined
+            withdrawal_providers = undefined
         }
     },
     ?assertEqual(Expected, checkout({payment_institution, Ref}, Version0)),
@@ -283,52 +263,6 @@ withdrawal_provider_add_test(_C) ->
     ?assertEqual(Object0, checkout({withdrawal_provider, Ref0}, Version0)),
     ?assertEqual(Object1, checkout({withdrawal_provider, Ref0}, Version1)),
     ?assertEqual(not_found, checkout({withdrawal_provider, Ref0}, Version2)),
-    ok = stop(Apps1).
-
--spec p2p_provider_add_test(term()) -> term().
-p2p_provider_add_test(_C) ->
-    Apps0 = start_with_repository(dmt_api_repository_v4),
-    Ref0 = #domain_P2PProviderRef{id = 1},
-    Data0 = #domain_P2PProvider{
-        name = <<"PProvider">>,
-        proxy = prepare_proxy(),
-        p2p_terms = #domain_P2PProvisionTerms{}
-    },
-    Object0 = #domain_P2PProviderObject{ref = Ref0, data = Data0},
-    Object1 = #domain_P2PProviderObject{
-        ref = Ref0,
-        data = Data0#domain_P2PProvider{name = <<"PPProvider">>}
-    },
-    Version0 = insert({p2p_provider, Object0}),
-    Version1 = update({p2p_provider, Object0}, {p2p_provider, Object1}),
-    Version2 = remove({p2p_provider, Object1}),
-    {Version3, Apps1} = migrate(Version2, Apps0),
-    Ref1 = #domain_ProviderRef{id = 401},
-    Expected0 = #domain_ProviderObject{
-        ref = Ref1,
-        data = #domain_Provider{
-            name = Data0#domain_P2PProvider.name,
-            description = <<>>,
-            proxy = Data0#domain_P2PProvider.proxy,
-            identity = Data0#domain_P2PProvider.identity,
-            accounts = Data0#domain_P2PProvider.accounts,
-            terms = #domain_ProvisionTermSet{
-                wallet = #domain_WalletProvisionTerms{
-                    p2p = Data0#domain_P2PProvider.p2p_terms
-                }
-            }
-        }
-    },
-    Expected1 = Expected0#domain_ProviderObject{
-        data = Expected0#domain_ProviderObject.data#domain_Provider{name = <<"PPProvider">>}
-    },
-    ?assertEqual(Expected0, checkout({provider, Ref1}, Version0)),
-    ?assertEqual(Expected1, checkout({provider, Ref1}, Version1)),
-    ?assertEqual(not_found, checkout({provider, Ref1}, Version2)),
-    ?assertEqual(not_found, checkout({provider, Ref1}, Version3)),
-    ?assertEqual(Object0, checkout({p2p_provider, Ref0}, Version0)),
-    ?assertEqual(Object1, checkout({p2p_provider, Ref0}, Version1)),
-    ?assertEqual(not_found, checkout({p2p_provider, Ref0}, Version2)),
     ok = stop(Apps1).
 
 -spec cash_reg_provider_add_test(term()) -> term().
@@ -465,19 +399,6 @@ prepare_withdrawal_provider(ID) ->
         {withdrawal_provider, #domain_WithdrawalProviderObject{
             ref = Ref,
             data = #domain_WithdrawalProvider{
-                name = <<"">>,
-                proxy = prepare_proxy()
-            }
-        }},
-    _Version = insert(Object),
-    Ref.
-
-prepare_p2p_provider(ID) ->
-    Ref = #domain_P2PProviderRef{id = ID},
-    Object =
-        {p2p_provider, #domain_P2PProviderObject{
-            ref = Ref,
-            data = #domain_P2PProvider{
                 name = <<"">>,
                 proxy = prepare_proxy()
             }
